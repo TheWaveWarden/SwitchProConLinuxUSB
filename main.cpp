@@ -32,7 +32,7 @@ int main(int argc, char **argv)
       {
         if (controllers[n_controller].open_device(iter->vendor_id, iter->product_id, iter->serial_number, n_controller + 1) < 0)
         {
-          printf("%sERROR: Failed to open controller nr %u!%s\n" KRED, n_controller + 1, KNRM);
+          printf("%sERROR: Failed to open controller nr %u!%s\n", KRED, n_controller + 1, KNRM);
           return -1;
         }
       }
