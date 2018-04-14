@@ -3,9 +3,12 @@
 #include <array>
 #include <cstring>
 #include <unistd.h>
+#include <chrono>
+#include <ctime>
+#include <ratio>
 //#include <optional>
 
-#define PROCON_DRIVER_VERSION "0.1"
+#define PROCON_DRIVER_VERSION "0.2"
 
 #define KNRM "\x1B[0m"
 #define KRED "\x1B[31m"
@@ -129,6 +132,76 @@ class ProController
         }
     }
 
+    static const uchar byte_button_value(ProController::BUTTONS button)
+    {
+        switch (button)
+        {
+        case d_left:
+            return 0x08;
+            break;
+        case d_right:
+            return 0x04;
+            break;
+        case d_up:
+            return 0x02;
+            break;
+        case d_down:
+            return 0x01;
+            break;
+        case A:
+            return 0x08;
+            break;
+        case B:
+            return 0x04;
+            break;
+        case X:
+            return 0x02;
+            break;
+        case Y:
+            return 0x01;
+            break;
+        case plus:
+            return 0x02;
+            break;
+        case minus:
+            return 0x01;
+            break;
+        case home:
+            return 0x10;
+            break;
+        case share:
+            return 0x20;
+            break;
+        case L1:
+            return 0x40;
+            break;
+        case L2:
+            return 0x80;
+            break;
+        case L3:
+            return 0x08;
+            break;
+        case R1:
+            return 0x40;
+            break;
+        case R2:
+            return 0x80;
+            break;
+        case R3:
+            return 0x04;
+            break;
+        case None:
+            return 0x00;
+            break;
+        default:
+            red();
+            printf("ERROR: Tried to find bitpos of unknown button!\n");
+            normal();
+            return 0x00;
+            break;
+        }
+    }
+
     static const uchar data_address(ProController::BUTTONS button)
     {
         switch (button)
@@ -199,6 +272,35 @@ class ProController
         }
     }
 
+    void timer()
+    {
+        // using namespace std::chrono;
+
+        // high_resolution_clock::time_point t2 = high_resolution_clock::now();
+
+        // duration<double, std::milli> time_span = t2 - t1;
+
+        // high_resolution_clock::time_point t1 = t2;
+
+        // printf("Time since last call ms: %u\n", time_span.count());
+        // //std::cout << "It took me " << time_span.count() << " milliseconds.";
+        // //std::cout << std::endl;
+
+        using namespace std;
+        clock_t now = clock();
+
+        double elapsed_secs = double(now - last_time) / CLOCKS_PER_SEC;
+
+        last_time = now;
+
+        printf("Time for last %u polls: %f seconds\n", n_print_cycle, elapsed_secs);
+        printf("Bad 0x00: %u\nBad 0x30: %u\n\n", n_bad_data_thirty, n_bad_data_zero);
+
+        print_cycle_counter = 0;
+        n_bad_data_thirty = 0;
+        n_bad_data_zero = 0;
+    }
+
     template <size_t length>
     exchange_array send_command(uchar command, std::array<uchar, length> const &data)
     {
@@ -216,8 +318,9 @@ class ProController
     }
 
     template <size_t length>
-    exchange_array exchange(std::array<uchar, length> const &data)
+    exchange_array exchange(std::array<uchar, length> const &data, bool timed = false)
     {
+
         if (!controller_ptr)
         {
             red();
@@ -236,7 +339,21 @@ class ProController
 
         std::array<uchar, exchange_length> ret;
         ret.fill(0);
-        hid_read(controller_ptr, ret.data(), exchange_length);
+        if (!timed)
+            hid_read(controller_ptr, ret.data(), exchange_length);
+        else
+        {
+            if (hid_read_timeout(controller_ptr, ret.data(), exchange_length, 100) == 0)
+            {
+                red();
+                //printf("Timeout! Let's try that again!\n");
+                normal();
+                fflush(stdout);
+                close_device();
+                open_device(ven_id, prod_id, NULL, n_controller);
+                usleep(1000 * 100);
+            }
+        }
         return ret;
     }
 
@@ -261,15 +378,90 @@ class ProController
         return send_command(command, buffer);
     }
 
-    void poll_input()
+    void print_sticks(const uchar &data0, const uchar &data1, const uchar &data2, const uchar &data3, const uchar &data4, const uchar &data5)
     {
+        uchar left_x = ((data1 & 0x0F) << 4) | ((data0 & 0xF0) >> 4);
+        uchar left_y = data2;
+        uchar right_x = ((data4 & 0x0F) << 4) | ((data3 & 0xF0) >> 4);
+        uchar right_y = data5;
+
+        yellow();
+        printf("left_x %d\n", left_x);
+        printf("left_y %d\n", left_y);
+        printf("right_x %d\n", right_x);
+        printf("right_y %d\n", right_y);
+        normal();
+
+        // if(left_x == 0x00 || left_y == 0x00 || right_x == 0x00 || right_y == 0x00 ) {
+        //     return -1;
+        // }
+        // return 0;
+    }
+
+    void print_buttons(const uchar &left, const uchar &mid, const uchar &right)
+    {
+        //uchar left = buttons[0];
+        //uchar mid = buttons[1];
+        //uchar right = buttons[2];
+
+        if (left & byte_button_value(d_left))
+            printf("d_left\n");
+        if (left & byte_button_value(d_right))
+            printf("d_right\n");
+        if (left & byte_button_value(d_up))
+            printf("d_up\n");
+        if (left & byte_button_value(d_down))
+            printf("d_down\n");
+        if (left & byte_button_value(L1))
+            printf("L1\n");
+        if (left & byte_button_value(L2))
+            printf("L2\n");
+        if (mid & byte_button_value(L3))
+            printf("L3\n");
+        if (mid & byte_button_value(R3))
+            printf("R3\n");
+        if (mid & byte_button_value(home))
+            printf("home\n");
+        if (mid & byte_button_value(share))
+            printf("share\n");
+        if (mid & byte_button_value(plus))
+            printf("plus\n");
+        if (mid & byte_button_value(minus))
+            printf("minus\n");
+        if (right & byte_button_value(A))
+            printf("A\n");
+        if (right & byte_button_value(B))
+            printf("B\n");
+        if (right & byte_button_value(X))
+            printf("X\n");
+        if (right & byte_button_value(Y))
+            printf("Y\n");
+        if (right & byte_button_value(R1))
+            printf("R1\n");
+        if (right & byte_button_value(R2))
+            printf("R2\n");
+    }
+
+    void clear_console()
+    {
+        system("clear");
+    }
+
+    int poll_input()
+    {
+        print_cycle_counter++;
+        if(print_cycle_counter++ > n_print_cycle) {
+            timer();
+        }
         if (!controller_ptr)
         {
             printf("%sERROR: Controller pointer is nullptr%s\n", KRED, KNRM);
-            return;
+            return -1;
         }
 
         auto dat = send_command(get_input, empty);
+
+        //clear_console();
         // if (!dat)
         // {
         //     red();
@@ -277,30 +469,62 @@ class ProController
         //     normal();
         //     return;
         // }
-        fill_new_array(dat);
-        print_new_array(dat);
-        print_exchange_array(dat);
-        detect_bad_data(dat);
+        //fill_new_array(dat);
+        //print_new_array(dat);
+
+        // if (dat[0x10] == 0x00)
+        // {
+        //     print_exchange_array(dat);
+        //     if (detect_useless_data(dat[0]))
+        //     {
+        //         printf("BÖSE!!\n");
+        //     }
+        //     usleep(1000 * 1000);
+        // }
+
+        if (detect_useless_data(dat[0]))
+        {
+            //printf("detected useless data!\n");
+            return 0;
+        }
+
+        detect_bad_data(dat[0], dat[1]);
         if (bad_data_detected)
         {
             red();
-            printf("\n-----------------------------------------------------------\n----------------   DETECTED BAD DATA!!!!!   ---------------\n-----------------------------------------------------------\n");
+            //printf("\n-----------------------------------------------------------\n----------------   DETECTED BAD DATA!!!!!   ---------------\n-----------------------------------------------------------\n");
             normal();
+            //return -1;
+            close_device();
+            usleep(1000 * 100);
+            open_device(ven_id, prod_id, NULL, n_controller);
+            bad_data_detected = false;
         }
 
-        if (dat[data_address(A)] == 0x08)
-        {
-            yellow();
-            printf("A BUTTON PRESSED!!!!!! :_))))))))))))\n");
-            normal();
-        }
+        std::array<uchar, 3> buttons;
+        //buttons[0] = dat[0x0f]; //left
+        //buttons[1] = dat[0x0e]; //mid
+        //buttons[2] = dat[0x0d]; //right
+
+        print_buttons(dat[0x0f], dat[0x0e], dat[0x0d]);
+        //print_sticks(dat[0x10], dat[0x11], dat[0x12], dat[0x13], dat[0x14], dat[0x15]);
         //print_exchange_array(dat);
+        return 0;
     }
     /* Hackishly detects when the controller is trapped in a bad loop. 
     Nothing to do here, need to restart driver :(*/
-    void detect_bad_data(exchange_array arr)
+    void detect_bad_data(const uchar &dat1, const uchar &dat2)
     {
-        bad_data_detected = (arr[1] == 0x01 && arr[0] == 0x81) ? true : bad_data_detected;
+        bad_data_detected = (dat2 == 0x01 && dat1 == 0x81) ? true : bad_data_detected;
+    }
+
+    bool detect_useless_data(const uchar &dat)
+    {
+        if(dat == 0x30) 
+            n_bad_data_thirty++;
+        if(dat == 0x00) 
+            n_bad_data_zero++;
+        return (dat == 0x30 || dat == 0x00);
     }
 
     void print_exchange_array(exchange_array arr)
@@ -405,7 +629,6 @@ class ProController
 
     void print_new_array(exchange_array arr)
     {
-        system("clear");
 
         red();
         for (size_t i = 0; i < 20; ++i)
@@ -483,28 +706,31 @@ class ProController
     int open_device(unsigned short vendor_id, unsigned short product_id, const wchar_t *serial_number, unsigned short n_controll)
     {
         controller_ptr = hid_open(vendor_id, product_id, serial_number);
+        is_opened = true;
+
         if (!controller_ptr)
         {
             return -1;
         }
 
-        if (false)
-        { //!exchange(handshake)) { //need std::optional
-            red();
-            printf("ERROR: exchange handshake failed!\n");
-            normal();
-        }
+        n_controller = n_controll;
+        ven_id = vendor_id;
+        prod_id = product_id;
+
+        // if (false)
+        // { //!exchange(handshake)) { //need std::optional
+        //     red();
+        //     printf("ERROR: exchange handshake failed!\n");
+        //     normal();
+        // }
+
+        //set_non_blocking();
 
         exchange(switch_baudrate);
         exchange(handshake);
-        exchange(hid_only_mode);
-
-        printf("%sSuccessfully opened controller nr. %u with serial number NULL%s\n", KYEL, n_controll, KNRM);
-        n_controller = n_controll;
+        exchange(hid_only_mode, true);
 
         send_subcommand(0x1, ledCommand, led);
-
-        is_opened = true;
 
         usleep(100 * 1000);
 
@@ -536,7 +762,7 @@ class ProController
         {
             hid_close(controller_ptr);
             blue();
-            printf("Closed controller nr. %u\n", n_controller);
+            //printf("Closed controller nr. %u\n", n_controller);
             normal();
         }
     }
@@ -557,6 +783,7 @@ class ProController
     {
         printf("%s", KYEL);
     }
+    std::clock_t last_time;
 
     std::array<uchar, 20> first{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
     std::array<uchar, 20> second{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
@@ -575,7 +802,15 @@ class ProController
     bool bad_data_detected = false;
 
     hid_device *controller_ptr;
+
+    unsigned short ven_id;
+    unsigned short prod_id;
     unsigned short n_controller;
-    unsigned short serial_number;
+
+    uint n_print_cycle = 1000;
+    uint print_cycle_counter = 0;
+    uint n_bad_data_zero = 0;
+    uint n_bad_data_thirty = 0;
+
     bool is_opened = false;
 };
