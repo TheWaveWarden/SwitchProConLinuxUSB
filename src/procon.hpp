@@ -8,7 +8,7 @@
 #include <ratio>
 //#include <optional>
 
-#define PROCON_DRIVER_VERSION "0.2"
+#define PROCON_DRIVER_VERSION "0.3"
 
 #define KNRM "\x1B[0m"
 #define KRED "\x1B[31m"
@@ -53,6 +53,7 @@ class ProController
     using uchar = unsigned char;
     static constexpr uchar ledCommand{0x30};
     static constexpr uchar get_input{0x1f};
+    static constexpr uchar center{0x7e};
     static constexpr size_t exchange_length{0x400};
     using exchange_array = std::array<uchar, exchange_length>; // might need std::optional<>
                                                                // static constexpr size_t buflen{ 80 };
@@ -318,7 +319,7 @@ class ProController
     }
 
     template <size_t length>
-    exchange_array exchange(std::array<uchar, length> const &data, bool timed = false)
+    exchange_array exchange(std::array<uchar, length> const &data, bool timed = false, int *status = nullptr)
     {
 
         if (!controller_ptr)
@@ -343,16 +344,20 @@ class ProController
             hid_read(controller_ptr, ret.data(), exchange_length);
         else
         {
+
             if (hid_read_timeout(controller_ptr, ret.data(), exchange_length, 100) == 0)
             {
-                red();
-                //printf("Timeout! Let's try that again!\n");
-                normal();
-                fflush(stdout);
-                close_device();
-                open_device(ven_id, prod_id, NULL, n_controller);
-                usleep(1000 * 100);
+                //failed to read!
+                if (status)
+                {
+                    *status = -1;
+                    return {};
+                }
             }
+        }
+        if (status)
+        {
+            *status = 0;
         }
         return ret;
     }
@@ -385,11 +390,14 @@ class ProController
         uchar right_x = ((data4 & 0x0F) << 4) | ((data3 & 0xF0) >> 4);
         uchar right_y = data5;
 
+        map_sticks(left_x, left_y, right_x, right_y);
+
+        clear_console();
         yellow();
         printf("left_x %d\n", left_x);
         printf("left_y %d\n", left_y);
         printf("right_x %d\n", right_x);
-        printf("right_y %d\n", right_y);
+        printf("right_y %d\n\n", right_y);
         normal();
 
         // if(left_x == 0x00 || left_y == 0x00 || right_x == 0x00 || right_y == 0x00 ) {
@@ -420,10 +428,12 @@ class ProController
             printf("L3\n");
         if (mid & byte_button_value(R3))
             printf("R3\n");
-        if (mid & byte_button_value(home))
-            printf("home\n");
         if (mid & byte_button_value(share))
             printf("share\n");
+        if (mid & byte_button_value(home)) {
+            printf("home\n");
+            //decalibrate();
+        }
         if (mid & byte_button_value(plus))
             printf("plus\n");
         if (mid & byte_button_value(minus))
@@ -449,10 +459,10 @@ class ProController
 
     int poll_input()
     {
-        print_cycle_counter++;
-        if(print_cycle_counter++ > n_print_cycle) {
-            timer();
-        }
+        // print_cycle_counter++;
+        // if(print_cycle_counter++ > n_print_cycle) {
+        //     timer();
+        // }
         if (!controller_ptr)
         {
             printf("%sERROR: Controller pointer is nullptr%s\n", KRED, KNRM);
@@ -461,68 +471,160 @@ class ProController
 
         auto dat = send_command(get_input, empty);
 
-        //clear_console();
-        // if (!dat)
-        // {
-        //     red();
-        //     printf("ERROR: Data is not valid!\n");
-        //     normal();
-        //     return;
-        // }
-        //fill_new_array(dat);
-        //print_new_array(dat);
-
-        // if (dat[0x10] == 0x00)
-        // {
-        //     print_exchange_array(dat);
-        //     if (detect_useless_data(dat[0]))
-        //     {
-        //         printf("BÖSE!!\n");
-        //     }
-        //     usleep(1000 * 1000);
-        // }
-
         if (detect_useless_data(dat[0]))
         {
             //printf("detected useless data!\n");
             return 0;
         }
 
-        detect_bad_data(dat[0], dat[1]);
-        if (bad_data_detected)
-        {
-            red();
-            //printf("\n-----------------------------------------------------------\n----------------   DETECTED BAD DATA!!!!!   ---------------\n-----------------------------------------------------------\n");
-            normal();
-            //return -1;
-            close_device();
-            usleep(1000 * 100);
-            open_device(ven_id, prod_id, NULL, n_controller);
-            bad_data_detected = false;
+        send_subcommand(0x1, ledCommand, led_calibrated); //XXX way too often
+
+        if (dat[0x0e] & byte_button_value(home)) {
+            decalibrate();
         }
-
-        std::array<uchar, 3> buttons;
-        //buttons[0] = dat[0x0f]; //left
-        //buttons[1] = dat[0x0e]; //mid
-        //buttons[2] = dat[0x0d]; //right
-
-        print_buttons(dat[0x0f], dat[0x0e], dat[0x0d]);
+        //print_buttons(dat[0x0f], dat[0x0e], dat[0x0d]);
         //print_sticks(dat[0x10], dat[0x11], dat[0x12], dat[0x13], dat[0x14], dat[0x15]);
         //print_exchange_array(dat);
         return 0;
     }
+
+    void calibrate()
+    {
+
+        if (!controller_ptr)
+        {
+            printf("%sERROR: Controller pointer is nullptr%s\n", KRED, KNRM);
+            return;
+        }
+
+        auto dat = send_command(get_input, empty);
+
+        if (detect_useless_data(dat[0]))
+        {
+            //printf("detected useless data!\n");
+            return;
+        }
+
+        //print_buttons(dat[0x0f], dat[0x0e], dat[0x0d]);
+        //print_sticks(dat[0x10], dat[0x11], dat[0x12], dat[0x13], dat[0x14], dat[0x15]);
+        //print_exchange_array(dat);
+
+        send_subcommand(0x1, ledCommand, led_calibration); //XXX way too often
+
+        bool cal = do_calibrate(dat[0x10], dat[0x11], dat[0x12], dat[0x13], dat[0x14], dat[0x15], dat[0x0e]);
+        if(cal) {
+            calibrated = true;
+            send_subcommand(0x1, ledCommand, led_calibrated);
+        }
+    }
+
+    bool do_calibrate(const uchar &stick0, const uchar &stick1, const uchar &stick2, const uchar &stick3, const uchar &stick4, const uchar &stick5, const uchar &mid_buttons)
+    {
+        uchar left_x = ((stick1 & 0x0F) << 4) | ((stick0 & 0xF0) >> 4);
+        uchar left_y = stick2;
+        uchar right_x = ((stick4 & 0x0F) << 4) | ((stick3 & 0xF0) >> 4);
+        uchar right_y = stick5;
+
+        left_x_min = (left_x < left_x_min) ? left_x : left_x_min;
+        left_y_min = (left_y < left_y_min) ? left_y : left_y_min;
+        right_x_min = (right_x < right_x_min) ? right_x : right_x_min;
+        right_y_min = (right_y < right_y_min) ? right_y : right_y_min;
+        left_x_max = (left_x > left_x_max) ? left_x : left_x_max;
+        left_y_max = (left_y > left_y_max) ? left_y : left_y_max;
+        right_x_max = (right_x > right_x_max) ? right_x : right_x_max;
+        right_y_max = (right_y > right_y_max) ? right_y : right_y_max;
+
+        // clear_console();
+        // printf("left_x_min: %u\n", left_x_min);
+        // printf("left_y_min: %u\n", left_y_min);
+        // printf("right_x_min: %u\n", right_x_min);
+        // printf("right_y_min: %u\n", right_y_min);
+        // printf("left_x_max: %u\n", left_x_max);
+        // printf("left_y_max: %u\n", left_y_max);
+        // printf("right_x_max: %u\n", right_x_max);
+        // printf("right_y_max: %u\n\n", right_y_max);
+
+        if (left_x == 240)
+        {
+            printf("240!\n");
+            usleep(1000 * 10 * 1000);
+        }
+
+        return (mid_buttons & byte_button_value(share));
+    }
+
+    void decalibrate() {
+        left_x_min = center;
+        left_x_max = center;
+        left_y_min = center;
+        left_x_max = center;
+        right_x_min = center;
+        right_x_max = center;
+        right_y_min = center;
+        right_x_max = center;
+        calibrated = false;
+        send_subcommand(0x1, ledCommand, led_calibration);
+        red();
+        printf("Controller decalibrated!\n");
+        yellow();
+        printf("Perform calibration again and press the square share button!\n");
+        normal();
+    }
+
+    const void map_sticks(uchar &left_x, uchar &left_y, uchar &right_x, uchar &right_y)
+    {
+        left_x = uchar(clamp((float)(left_x - left_x_min) / (float)(left_x_max - left_x_min) * 255.f));
+        left_y = uchar(clamp((float)(left_y - left_y_min) / (float)(left_y_max - left_y_min) * 255.f));
+        right_x = uchar(clamp((float)(right_x - right_x_min) / (float)(right_x_max - right_x_min) * 255.f));
+        right_y = uchar(clamp((float)(right_y - right_y_min) / (float)(right_y_max - right_y_min) * 255.f));
+    }
+
+    static const float clamp(float inp) {
+        if(inp < 0.5f) 
+            return 0.5f;
+        if(inp > 254.5f) {
+            return 254.5f;
+        }
+        return inp;
+    }
+
+    int try_read_bad_data()
+    {
+
+        if (!controller_ptr)
+        {
+            printf("%sERROR: Controller pointer is nullptr%s\n", KRED, KNRM);
+            return -1;
+        }
+
+        auto dat = send_command(get_input, empty);
+
+        if (detect_useless_data(dat[0]))
+        {
+            return 0;
+        }
+
+        if (detect_bad_data(dat[0], dat[1]))
+        {
+            //print_exchange_array(dat);
+            return -1;
+        }
+
+        return 0;
+    }
+
     /* Hackishly detects when the controller is trapped in a bad loop. 
     Nothing to do here, need to restart driver :(*/
-    void detect_bad_data(const uchar &dat1, const uchar &dat2)
+    bool detect_bad_data(const uchar &dat1, const uchar &dat2)
     {
-        bad_data_detected = (dat2 == 0x01 && dat1 == 0x81) ? true : bad_data_detected;
+        return (dat2 == 0x01 && dat1 == 0x81) ? true : bad_data_detected;
     }
 
     bool detect_useless_data(const uchar &dat)
     {
-        if(dat == 0x30) 
+        if (dat == 0x30)
             n_bad_data_thirty++;
-        if(dat == 0x00) 
+        if (dat == 0x00)
             n_bad_data_zero++;
         return (dat == 0x30 || dat == 0x00);
     }
@@ -728,9 +830,16 @@ class ProController
 
         exchange(switch_baudrate);
         exchange(handshake);
-        exchange(hid_only_mode, true);
 
-        send_subcommand(0x1, ledCommand, led);
+        //the next part will sometimes fail, then need to reopen device via hidapi
+        int read_failed;
+        exchange(hid_only_mode, true, &read_failed);
+        if (read_failed < 0)
+        {
+            return -2;
+        }
+
+        send_subcommand(0x1, ledCommand, led_calibration);
 
         usleep(100 * 1000);
 
@@ -783,6 +892,10 @@ class ProController
     {
         printf("%s", KYEL);
     }
+    static const void green()
+    {
+        printf("%s", KGRN);
+    }
     std::clock_t last_time;
 
     std::array<uchar, 20> first{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
@@ -793,7 +906,8 @@ class ProController
     std::array<uchar, 20> sixth{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 
     uchar rumble_counter{0};
-    const std::array<uchar, 1> led{0x8};
+    const std::array<uchar, 1> led_calibration{0xff};
+    const std::array<uchar, 1> led_calibrated{0x01};
     const std::array<uchar, 0> empty{};
     const std::array<uchar, 2> handshake{0x80, 0x02};
     const std::array<uchar, 2> switch_baudrate{0x80, 0x03};
@@ -813,4 +927,14 @@ class ProController
     uint n_bad_data_thirty = 0;
 
     bool is_opened = false;
+    bool calibrated = false;
+
+    uchar left_x_min = 0x7e;
+    uchar left_y_min = 0x7e;
+    uchar right_x_min = 0x7e;
+    uchar right_y_min = 0x7e;
+    uchar left_x_max = 0x7e;
+    uchar left_y_max = 0x7e;
+    uchar right_x_max = 0x7e;
+    uchar right_y_max = 0x7e;
 };

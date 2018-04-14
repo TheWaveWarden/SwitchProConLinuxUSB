@@ -1,6 +1,7 @@
 #include "procon.hpp"
 
 //#define DEBUG
+#define TEST_BAD_DATA_CYCLES 10
 
 int main(int argc, char **argv)
 {
@@ -10,82 +11,107 @@ int main(int argc, char **argv)
   printf(" |\n-------------------------------------------------------------------------------------------");
   printf("\n\n%s", KNRM);
 
-  ProController controllers[MAX_N_CONTROLLERS];
+  ProController controller;
   hid_init();
   hid_device *controller_ptr;
   hid_device_info *devs = hid_enumerate(NINTENDO_ID, PROCON_ID); // Don't trust hidapi, returns non-matching devices sometimes (*const to prevent compiler from optimizing away)
   hid_device_info *iter = devs;
   unsigned short n_controller = 0;
   bool controller_found = false;
+
+  bool opened = false;
+  bool bad_data = false;
+
+  //OPEN PHASE
   do
   {
+    opened = false;
+    bad_data = false;
     if (iter != nullptr)
     {
-#ifdef DEBUG
-      printf("prod_id: 0x%x\n", iter->product_id);
-      printf("vend_id: 0x%x\n", iter->vendor_id);
-      printf("serial_numb: 0x%x\n", iter->serial_number);
-#endif
       if (iter->product_id == PROCON_ID && iter->vendor_id == NINTENDO_ID)
       {
-        if (controllers[n_controller].open_device(iter->vendor_id, iter->product_id, iter->serial_number, n_controller + 1) < 0)
-        {
-          printf("%sERROR: Failed to open controller nr %u!%s\n", KRED, n_controller + 1, KNRM);
-          return -1;
+        //open & test for timeout in read!
+        int ret = controller.open_device(iter->vendor_id, iter->product_id, iter->serial_number, n_controller + 1);
+        opened = ret == 0;
+        if (!opened)
+        { // read timed out
+          ProController::red();
+          if (ret == -1)
+          {
+            printf("Invalid device pointer. Aborting!\n");
+            return -1;
+          }
+          printf("Failed to open controller, error code %d, trying again...\n", ret);
+          ProController::normal();
+          controller.close_device();
+          usleep(1000 * 10);
+          continue;
         }
-        controllers[n_controller].set_non_blocking();
-        controller_found = true;
+        else
+        {
+          //TEST FOR BAD DATA
+          for (size_t i = 0; i < TEST_BAD_DATA_CYCLES; ++i)
+          {
+            if (controller.try_read_bad_data() != 0)
+            {
+              ProController::red();
+              printf("Detected bad data stream. Trying again...\n");
+              ProController::normal();
+              controller.close_device();
+              bad_data = true;
+              usleep(1000 * 10);
+              break;
+            }
+          }
+        }
       }
-      iter = iter->next;
-    }
-    n_controller++;
-  } while (iter != nullptr && n_controller < MAX_N_CONTROLLERS);
-  hid_free_enumeration(devs);
-  if (!controller_found)
-  {
-    printf("%sUnable to find controller!\n%s", KRED, KNRM);
-  }
-  else
-  {
-    for (int i = 0; i < MAX_N_CONTROLLERS; ++i)
-    {
-      if (controllers[i].is_opened){
-        //printf("%sSuccessfully opened controller nr. %u with serial number NULL%s\n", KYEL, i + 1, KNRM);
-      }
-    }
-  }
-  //hid_device *controller_ptr = hid_open_path(device_name);
-
-  unsigned char data[40];
-  fflush(stdout);
-  //return -1;
-  bool once = true;
-
-  while (true || once)
-  {
-    for (short unsigned i = 0; i < MAX_N_CONTROLLERS; ++i)
-    {
-
-      if (controllers[i].is_opened)
+      else
       {
-        if (controllers[i].poll_input() < 0)
-          return -1;
-        // int ret = controllers[i].read(controllers[i].controller_ptr, data, 40);
-        // printf("Controller read() returned %i\n", ret);
-        // for (short unsigned u = 0; u < 40; ++u)
-        // {
-        //   printf("%u", data[u]);
-        // }
+        ProController::red();
+        printf("No controller found...\n");
+        ProController::normal();
+        return -1;
       }
-      fflush(stdout);
     }
-    once = false;
+
+  } while (!opened || bad_data);
+
+  if (controller.is_opened)
+  {
+    ProController::green();
+    printf("Successfully opened controller!\n\n");
+    ProController::normal();
+    printf("Now entering calibration mode. \n");
+    ProController::yellow();
+    printf("Move your analog sticks to the maxima and press the square 'share' button afterwards!\n");
+    ProController::normal();
+  }
+
+  while (true)
+  {
+    if (!controller.calibrated)
+    {
+      while (!controller.calibrated)
+      {
+        controller.calibrate();
+      }
+      ProController::green();
+      printf("Calibrated Controller! Now entering input mode!\n");
+      ProController::normal();
+    }
+
+    if (controller.is_opened)
+    {
+      if (controller.poll_input() < 0)
+        return -1;
+    }
   }
 
   //hid_exit;
   for (short unsigned i = 0; i < MAX_N_CONTROLLERS; ++i)
   {
-    controllers[i].close_device();
+    controller.close_device();
   }
   printf("\n");
   return 0;
