@@ -3,13 +3,45 @@
 //#define DEBUG
 #define TEST_BAD_DATA_CYCLES 10
 
-int main(int argc, char **argv)
+int main(int argc, char *argv[])
 {
+  bool help = false;
+  bool force_calibration = false;
+
+  for (size_t i = 1; i < argc; ++i)
+  {
+    //printf("argv: %d\n",argv[i]);
+    //std::cout << argv[i] << std::endl;
+
+    bool option_found = false;
+    if (std::string(argv[i]) == "-h" || std::string(argv[i]) == "--help")
+    {
+      help = true;
+      option_found = true;
+    }
+    if (std::string(argv[i]) == "-c" || std::string(argv[i]) == "--calibration")
+    {
+      force_calibration = true;
+      option_found = true;
+    }
+    if (!option_found)
+    {
+      std::cout << "Unknown option " << argv[i] << ". For usage, type 'procon_driver --help'" << std::endl;
+      return -1;
+    }
+  }
+
   printf("\n-------------------------------------------------------------------------------------------\n");
   printf("| %sNintendo Switch Pro-Controller USB driver for linux based systems. %sCurrent version: ", KGRN, KNRM);
   printf(PROCON_DRIVER_VERSION);
   printf(" |\n-------------------------------------------------------------------------------------------");
   printf("\n\n%s", KNRM);
+
+  if (help)
+  {
+    printf("Usage: procon_driver [OPTIONS]\noptions are:\n -h --help           get help on usage at start\n -c --calibration    force calibration at start\n\n");
+    return 0;
+  }
 
   ProController controller;
   hid_init();
@@ -21,6 +53,11 @@ int main(int argc, char **argv)
 
   bool opened = false;
   bool bad_data = false;
+
+  if (force_calibration)
+  {
+    controller.read_calibration_from_file = false;
+  }
 
   //OPEN PHASE
   do
@@ -81,11 +118,14 @@ int main(int argc, char **argv)
   {
     ProController::green();
     printf("Successfully opened controller!\n\n");
-    ProController::normal();
-    printf("Now entering calibration mode. \n");
-    ProController::yellow();
-    printf("Move your analog sticks to the maxima and press the square 'share' button afterwards!\n");
-    ProController::normal();
+    if (!controller.read_calibration_from_file)
+    {
+      ProController::blue();
+      printf("Now entering calibration mode. \n");
+      ProController::yellow();
+      printf("Move your analog sticks to the maxima and press the square 'share' button afterwards!\n");
+      ProController::normal();
+    }
   }
 
   //controller.u_setup();
