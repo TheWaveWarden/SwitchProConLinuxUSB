@@ -1000,16 +1000,21 @@ public:
 
     // press
     if (b_a && !last_a)
-      uinput_button_down(KEY_A);
+      uinput_button_down(BTN_A);
     if (b_b && !last_b)
       uinput_button_down(BTN_B);
     if (b_x && !last_x)
       uinput_button_down(BTN_X);
     if (b_y && !last_y)
       uinput_button_down(BTN_Y);
-    // if (b_d_down && !last_d_down)
-    //   uinput_button_down(BTN_A); // XXX
-
+    if (b_d_down && !last_d_down)
+      uinput_button_down(BTN_BASE);
+    if (b_d_up && !last_d_up)
+      uinput_button_down(BTN_BASE2);
+    if (b_d_left && !last_d_left)
+      uinput_button_down(BTN_BASE3);
+    if (b_d_right && !last_d_right)
+      uinput_button_down(BTN_BASE4);
     if (b_plus && !last_plus)
       uinput_button_down(BTN_START);
     if (b_minus && !last_minus)
@@ -1031,16 +1036,21 @@ public:
 
     // release
     if (!b_a && last_a)
-      uinput_button_release(KEY_A);
+      uinput_button_release(BTN_A);
     if (!b_b && last_b)
       uinput_button_release(BTN_B);
     if (!b_x && last_x)
       uinput_button_release(BTN_X);
     if (!b_y && last_y)
       uinput_button_release(BTN_Y);
-    // if (b_d_down && last_d_down)
-    //   uinput_button_down(BTN_A); // XXX
-
+    if (!b_d_down && last_d_down)
+      uinput_button_release(BTN_BASE);
+    if (!b_d_up && last_d_up)
+      uinput_button_release(BTN_BASE2);
+    if (!b_d_left && last_d_left)
+      uinput_button_release(BTN_BASE3);
+    if (!b_d_right && last_d_right)
+      uinput_button_release(BTN_BASE4);
     if (!b_plus && last_plus)
       uinput_button_release(BTN_START);
     if (!b_minus && last_minus)
@@ -1080,26 +1090,37 @@ public:
     last_y = b_y;
   }
 
-  void uinput_button_down(const uchar &cod) {
+  void uinput_button_down(const int &cod) {
 
     // press button
     memset(&uinput_event, 0, sizeof(uinput_event));
     gettimeofday(&uinput_event.time, NULL);
     uinput_event.type = EV_KEY;
-    uinput_event.code = cod;
+    uinput_event.code = cod; // BTN_A;
     uinput_event.value = 1;
-    write(uinput_fd, &uinput_event, sizeof(uinput_event));
+    int ret = write(uinput_fd, &uinput_event, sizeof(uinput_event));
+    if (ret < 0) {
+      red();
+      printf("ERROR: write in button_down() returned %i\n", ret);
+      normal();
+    }
 
     // send report
     uinput_event.type = EV_SYN;
     uinput_event.code = SYN_REPORT;
     uinput_event.value = 0;
-    write(uinput_fd, &uinput_event, sizeof(uinput_event));
+    ret = write(uinput_fd, &uinput_event, sizeof(uinput_event));
+
+    if (ret < 0) {
+      red();
+      printf("ERROR: write in button_down() send report returned %i\n", ret);
+      normal();
+    }
 
     printf("PRessed button %u\n", cod);
   }
 
-  void uinput_button_release(const uchar &cod) {
+  void uinput_button_release(const int &cod) {
     // release button
     memset(&uinput_event, 0, sizeof(uinput_event));
     gettimeofday(&uinput_event.time, NULL);
@@ -1134,6 +1155,10 @@ public:
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_B);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_X);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_Y);
+    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_BASE);
+    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_BASE2);
+    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_BASE3);
+    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_BASE4);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_GAMEPAD);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_TL);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_TL2);
