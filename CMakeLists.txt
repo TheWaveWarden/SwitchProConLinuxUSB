@@ -1,11 +1,15 @@
 cmake_minimum_required(VERSION 3.5)
-SET(CMAKE_CXX_COMPILER /usr/bin/clang)
-set (CMAKE_CXX_STANDARD 11)
+#SET(CMAKE_CXX_COMPILER /usr/bin/clang)
+SET(CMAKE_CXX_COMPILER /usr/bin/g++)
+set (CMAKE_CXX_STANDARD 14)
 
 project(procon_driver)
 
 find_library(HIDAPI_LIBRARY
 	NAMES hidapi hidapi-libusb REQUIRED)
+
+find_library(EVDEV_LIBRARY
+	NAMES evdev REQUIRED)
 
 find_path(HIDAPI_INCLUDE_DIR
 	NAMES hidapi.h
@@ -21,7 +25,13 @@ find_package_handle_standard_args(HIDAPI
 if(HIDAPI_FOUND)
 	set(HIDAPI_LIBRARIES "${HIDAPI_LIBRARY}")
 
+
+
 	set(HIDAPI_INCLUDE_DIRS "${HIDAPI_INCLUDE_DIR}")
+endif()
+
+if(EVDEV_FOUND)
+	set(EVDEV_LIBRARIES "${EVDEV_LIBRARY}")
 endif()
 
 mark_as_advanced(HIDAPI_INCLUDE_DIR HIDAPI_LIBRARY)
@@ -36,4 +46,4 @@ set(MAIN main.cpp)
 MESSAGE( STATUS "CMAKE_BINARY_DIR:         " ${HIDAPI_INCLUDE_DIR} )
 
 add_executable(${PROJECT_NAME} ${MAIN})
-target_link_libraries(${PROJECT_NAME} ${HIDAPI_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${HIDAPI_LIBRARIES} ${EVDEV_LIBRARIES})

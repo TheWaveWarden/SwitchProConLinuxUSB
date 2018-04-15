@@ -6,9 +6,15 @@
 #include <chrono>
 #include <ctime>
 #include <ratio>
+#include <linux/uinput.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <fstream>
+#include <iostream>
 //#include <optional>
 
-#define PROCON_DRIVER_VERSION "0.3"
+#define PROCON_DRIVER_VERSION "0.4"
 
 #define KNRM "\x1B[0m"
 #define KRED "\x1B[31m"
@@ -383,6 +389,78 @@ class ProController
         return send_command(command, buffer);
     }
 
+    // void start_uinput()
+    // {
+    //     open()
+    // }
+
+    // void emit(int fd, int type, int code, int val)
+    // {
+    //     struct input_event ie;
+
+    //     ie.type = type;
+    //     ie.code = code;
+    //     ie.value = val;
+    //     /* timestamp values below are ignored */
+    //     ie.time.tv_sec = 0;
+    //     ie.time.tv_usec = 0;
+
+    //     write(fd, &ie, sizeof(ie));
+    // }
+
+    // int u_setup()
+    // {
+    //     struct uinput_setup usetup;
+
+    //     int fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
+
+    //     /*
+    // * The ioctls below will enable the device that is about to be
+    // * created, to pass key events, in this case the space key.
+    // */
+    //     ioctl(fd, UI_SET_EVBIT, EV_KEY);
+    //     ioctl(fd, UI_SET_KEYBIT, KEY_SPACE);
+
+    //     memset(&usetup, 0, sizeof(usetup));
+    //     usetup.id.bustype = BUS_USB;
+    //     usetup.id.vendor = 0x1234;  /* sample vendor */
+    //     usetup.id.product = 0x5678; /* sample product */
+    //     strcpy(usetup.name, "Example device");
+
+    //     ioctl(fd, UI_DEV_SETUP, &usetup);
+    //     ioctl(fd, UI_DEV_CREATE);
+
+    //     /*
+    // * On UI_DEV_CREATE the kernel will create the device node for this
+    // * device. We are inserting a pause here so that userspace has time
+    // * to detect, initialize the new device, and can start listening to
+    // * the event, otherwise it will not notice the event we are about
+    // * to send. This pause is only needed in our example code!
+    // */
+    //     sleep(1);
+
+    //     /* Key press, report the event, send key release, and report again */
+    //     // printf("now looping d key!\n");
+    //     // while (true)
+    //     // {
+    //         emit(fd, EV_KEY, KEY_D, 1);
+    //         emit(fd, EV_SYN, SYN_REPORT, 0);
+    //         emit(fd, EV_KEY, KEY_D, 0);
+    //         emit(fd, EV_SYN, SYN_REPORT, 0);
+    //     //}
+
+    //     /*
+    // * Give userspace some time to read the events before we destroy the
+    // * device with UI_DEV_DESTOY.
+    // */
+    //     sleep(1);
+
+    //     ioctl(fd, UI_DEV_DESTROY);
+    //     close(fd);
+
+    //     return 0;
+    // }
+
     void print_sticks(const uchar &data0, const uchar &data1, const uchar &data2, const uchar &data3, const uchar &data4, const uchar &data5)
     {
         uchar left_x = ((data1 & 0x0F) << 4) | ((data0 & 0xF0) >> 4);
@@ -430,7 +508,8 @@ class ProController
             printf("R3\n");
         if (mid & byte_button_value(share))
             printf("share\n");
-        if (mid & byte_button_value(home)) {
+        if (mid & byte_button_value(home))
+        {
             printf("home\n");
             //decalibrate();
         }
@@ -479,17 +558,72 @@ class ProController
 
         send_subcommand(0x1, ledCommand, led_calibrated); //XXX way too often
 
-        if (dat[0x0e] & byte_button_value(home)) {
+        if (dat[0x0e] & byte_button_value(home))
+        {
             decalibrate();
         }
         //print_buttons(dat[0x0f], dat[0x0e], dat[0x0d]);
-        //print_sticks(dat[0x10], dat[0x11], dat[0x12], dat[0x13], dat[0x14], dat[0x15]);
+        print_sticks(dat[0x10], dat[0x11], dat[0x12], dat[0x13], dat[0x14], dat[0x15]);
         //print_exchange_array(dat);
         return 0;
     }
 
     void calibrate()
     {
+        std::ifstream myReadFile;
+        uchar output[8];
+        myReadFile.open("procon_calibration_data", std::ios::in | std::ios::binary);
+        if (myReadFile)
+        {
+
+            //while (!myReadFile.eof())
+
+            myReadFile.read((char *)&left_x_min, sizeof(uchar));
+            myReadFile.read((char *)&left_x_max, sizeof(uchar));
+            myReadFile.read((char *)&left_y_min, sizeof(uchar));
+            myReadFile.read((char *)&left_y_max, sizeof(uchar));
+            myReadFile.read((char *)&right_x_min, sizeof(uchar));
+            myReadFile.read((char *)&right_x_max, sizeof(uchar));
+            myReadFile.read((char *)&right_y_min, sizeof(uchar));
+            myReadFile.read((char *)&right_y_max, sizeof(uchar));
+
+            green();
+            printf("Read calibration data from file! ");
+            yellow();
+            printf("Use --calibrate or -c to calibrate again!\n");
+            normal();
+
+            calibrated = true;
+            send_subcommand(0x1, ledCommand, led_calibrated);
+
+            return;
+
+            // printf("x_left_min:%d\n", mi_l_x);
+            // printf("real%d\n", left_x_min);
+
+            // printf("xlma:%d\n", ma_l_x);
+            // printf("real%d\n", left_x_max);
+
+            // printf("ylmi:%d\n", mi_l_y);
+            // printf("real%d\n", left_y_min);
+
+            // printf("ylma:%d\n", ma_l_y);
+            // printf("real%d\n", left_y_max);
+
+            // printf("xrmi:%d\n", mi_r_x);
+            // printf("real%d\n", right_x_min);
+
+            // printf("xrma:%d\n", ma_r_x);
+            // printf("real%d\n", right_x_max);
+
+            // printf("yrmi:%d\n", mi_r_y);
+            // printf("real%d\n", right_y_min);
+
+            // printf("yrma:%d\n", ma_r_y);
+            // printf("real%d\n\n", right_y_max);
+        }
+
+        myReadFile.close();
 
         if (!controller_ptr)
         {
@@ -512,10 +646,37 @@ class ProController
         send_subcommand(0x1, ledCommand, led_calibration); //XXX way too often
 
         bool cal = do_calibrate(dat[0x10], dat[0x11], dat[0x12], dat[0x13], dat[0x14], dat[0x15], dat[0x0e]);
-        if(cal) {
+        if (cal)
+        {
             calibrated = true;
             send_subcommand(0x1, ledCommand, led_calibrated);
+
+            //write calibration data to file
+            std::ofstream calibration_file;
+            calibration_file.open("procon_calibration_data", std::ios::out | std::ios::binary);
+            calibration_file.write((char *)&left_x_min, sizeof(uchar));
+            calibration_file.write((char *)&left_x_max, sizeof(uchar));
+            calibration_file.write((char *)&left_y_min, sizeof(uchar));
+            calibration_file.write((char *)&left_y_max, sizeof(uchar));
+            calibration_file.write((char *)&right_x_min, sizeof(uchar));
+            calibration_file.write((char *)&right_x_max, sizeof(uchar));
+            calibration_file.write((char *)&right_y_min, sizeof(uchar));
+            calibration_file.write((char *)&right_y_max, sizeof(uchar));
+            calibration_file.close();
+            green();
+            printf("Wrote calibration data to file!\n");
+            normal();
         }
+
+        // std::ofstream out("calibration_data");
+        // if (!out)
+        // {
+        //     return;
+        // }
+
+        // printf("wrote text\n");
+
+        // out.close();
     }
 
     bool do_calibrate(const uchar &stick0, const uchar &stick1, const uchar &stick2, const uchar &stick3, const uchar &stick4, const uchar &stick5, const uchar &mid_buttons)
@@ -553,7 +714,8 @@ class ProController
         return (mid_buttons & byte_button_value(share));
     }
 
-    void decalibrate() {
+    void decalibrate()
+    {
         left_x_min = center;
         left_x_max = center;
         left_y_min = center;
@@ -579,10 +741,12 @@ class ProController
         right_y = uchar(clamp((float)(right_y - right_y_min) / (float)(right_y_max - right_y_min) * 255.f));
     }
 
-    static const float clamp(float inp) {
-        if(inp < 0.5f) 
+    static const float clamp(float inp)
+    {
+        if (inp < 0.5f)
             return 0.5f;
-        if(inp > 254.5f) {
+        if (inp > 254.5f)
+        {
             return 254.5f;
         }
         return inp;
@@ -898,20 +1062,20 @@ class ProController
     }
     std::clock_t last_time;
 
-    std::array<uchar, 20> first{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
-    std::array<uchar, 20> second{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
-    std::array<uchar, 20> third{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
-    std::array<uchar, 20> fourth{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
-    std::array<uchar, 20> fifth{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
-    std::array<uchar, 20> sixth{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+    std::array<uchar, 20> first{{0x0}};
+    std::array<uchar, 20> second{{0x0}};
+    std::array<uchar, 20> third{{0x0}};
+    std::array<uchar, 20> fourth{{0x0}};
+    std::array<uchar, 20> fifth{{0x0}};
+    std::array<uchar, 20> sixth{{0x0}};
 
     uchar rumble_counter{0};
-    const std::array<uchar, 1> led_calibration{0xff};
-    const std::array<uchar, 1> led_calibrated{0x01};
-    const std::array<uchar, 0> empty{};
-    const std::array<uchar, 2> handshake{0x80, 0x02};
-    const std::array<uchar, 2> switch_baudrate{0x80, 0x03};
-    const std::array<uchar, 2> hid_only_mode{0x80, 0x04};
+    const std::array<uchar, 1> led_calibration{{0xff}};
+    const std::array<uchar, 1> led_calibrated{{0x01}};
+    const std::array<uchar, 0> empty{{}};
+    const std::array<uchar, 2> handshake{{0x80, 0x02}};
+    const std::array<uchar, 2> switch_baudrate{{0x80, 0x03}};
+    const std::array<uchar, 2> hid_only_mode{{0x80, 0x04}};
 
     bool bad_data_detected = false;
 

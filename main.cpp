@@ -88,6 +88,8 @@ int main(int argc, char **argv)
     ProController::normal();
   }
 
+  //controller.u_setup();
+
   while (true)
   {
     if (!controller.calibrated)
