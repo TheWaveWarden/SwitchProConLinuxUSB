@@ -90,12 +90,15 @@ int main(int argc, char *argv[])
         opened = ret == 0;
         if (!opened)
         { // read timed out
-          ProController::red();
+          
           if (ret == -1)
           {
+            ProController::red();
             printf("Invalid device pointer. Aborting!\n");
+            ProController::normal();
             return -1;
           }
+          ProController::magenta();
           printf("Failed to open controller, error code %d, trying again...\n", ret);
           ProController::normal();
           controller.close_device();
@@ -109,7 +112,7 @@ int main(int argc, char *argv[])
           {
             if (controller.try_read_bad_data() != 0)
             {
-              ProController::red();
+              ProController::magenta();
               printf("Detected bad data stream. Trying again...\n");
               ProController::normal();
               controller.close_device();
@@ -134,7 +137,7 @@ int main(int argc, char *argv[])
   if (controller.is_opened)
   {
     ProController::green();
-    printf("Successfully opened controller!\n\n");
+    printf("Opened controller!\n");
     if (!controller.read_calibration_from_file)
     {
       ProController::blue();

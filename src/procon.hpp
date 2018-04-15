@@ -18,7 +18,7 @@
 #include <unistd.h>
 //#include <optional>
 
-#define PROCON_DRIVER_VERSION "0.4"
+#define PROCON_DRIVER_VERSION "0.5"
 
 #define KNRM "\x1B[0m"
 #define KRED "\x1B[31m"
@@ -277,17 +277,6 @@ public:
   }
 
   void timer() {
-    // using namespace std::chrono;
-
-    // high_resolution_clock::time_point t2 = high_resolution_clock::now();
-
-    // duration<double, std::milli> time_span = t2 - t1;
-
-    // high_resolution_clock::time_point t1 = t2;
-
-    // printf("Time since last call ms: %u\n", time_span.count());
-    // //std::cout << "It took me " << time_span.count() << " milliseconds.";
-    // //std::cout << std::endl;
 
     using namespace std;
     clock_t now = clock();
@@ -379,78 +368,6 @@ public:
     return send_command(command, buffer);
   }
 
-  // void start_uinput()
-  // {
-  //     open()
-  // }
-
-  // void emit(int fd, int type, int code, int val)
-  // {
-  //     struct input_event ie;
-
-  //     ie.type = type;
-  //     ie.code = code;
-  //     ie.value = val;
-  //     /* timestamp values below are ignored */
-  //     ie.time.tv_sec = 0;
-  //     ie.time.tv_usec = 0;
-
-  //     write(fd, &ie, sizeof(ie));
-  // }
-
-  // int u_setup()
-  // {
-  //     struct uinput_setup usetup;
-
-  //     int fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
-
-  //     /*
-  // * The ioctls below will enable the device that is about to be
-  // * created, to pass key events, in this case the space key.
-  // */
-  //     ioctl(fd, UI_SET_EVBIT, EV_KEY);
-  //     ioctl(fd, UI_SET_KEYBIT, KEY_SPACE);
-
-  //     memset(&usetup, 0, sizeof(usetup));
-  //     usetup.id.bustype = BUS_USB;
-  //     usetup.id.vendor = 0x1234;  /* sample vendor */
-  //     usetup.id.product = 0x5678; /* sample product */
-  //     strcpy(usetup.name, "Example device");
-
-  //     ioctl(fd, UI_DEV_SETUP, &usetup);
-  //     ioctl(fd, UI_DEV_CREATE);
-
-  //     /*
-  // * On UI_DEV_CREATE the kernel will create the device node for this
-  // * device. We are inserting a pause here so that userspace has time
-  // * to detect, initialize the new device, and can start listening to
-  // * the event, otherwise it will not notice the event we are about
-  // * to send. This pause is only needed in our example code!
-  // */
-  //     sleep(1);
-
-  //     /* Key press, report the event, send key release, and report again */
-  //     // printf("now looping d key!\n");
-  //     // while (true)
-  //     // {
-  //         emit(fd, EV_KEY, KEY_D, 1);
-  //         emit(fd, EV_SYN, SYN_REPORT, 0);
-  //         emit(fd, EV_KEY, KEY_D, 0);
-  //         emit(fd, EV_SYN, SYN_REPORT, 0);
-  //     //}
-
-  //     /*
-  // * Give userspace some time to read the events before we destroy the
-  // * device with UI_DEV_DESTOY.
-  // */
-  //     sleep(1);
-
-  //     ioctl(fd, UI_DEV_DESTROY);
-  //     close(fd);
-
-  //     return 0;
-  // }
-
   void print_sticks(const uchar &data0, const uchar &data1, const uchar &data2,
                     const uchar &data3, const uchar &data4,
                     const uchar &data5) {
@@ -541,11 +458,15 @@ public:
 
     send_subcommand(0x1, led_command, led_calibrated); // XXX way too often
 
-    if (dat[0x0e] & byte_button_value(home)) {
+    if (dat[0x0e] & byte_button_value(home) &&
+        dat[0x0e] & byte_button_value(share)) {
       decalibrate();
     }
 
     uinput_manage_buttons(dat[0x0f], dat[0x0e], dat[0x0d]);
+    uinput_manage_joysticks(dat[0x10], dat[0x11], dat[0x12], dat[0x13],
+                            dat[0x14], dat[0x15]);
+
     // print_buttons(dat[0x0f], dat[0x0e], dat[0x0d]);
     // print_sticks(dat[0x10], dat[0x11], dat[0x12], dat[0x13], dat[0x14],
     // dat[0x15]);
@@ -574,8 +495,8 @@ public:
 
         green();
         printf("Read calibration data from file! ");
-        yellow();
-        printf("Use --calibrate or -c to calibrate again!\n");
+        cyan();
+        printf("Press 'share' and 'home' to calibrate again or start with --calibrate or -c.\n");
         normal();
 
         calibrated = true;
@@ -605,32 +526,36 @@ public:
     // print_exchange_array(dat);
 
     send_subcommand(0x1, led_command, led_calibration); // XXX way too often
-    // blink();
+    if (!share_button_free) {
+      if (!(dat[0x0e] & byte_button_value(share))) {
+        share_button_free = true;
+      }
+    } else {
+      bool cal = do_calibrate(dat[0x10], dat[0x11], dat[0x12], dat[0x13],
+                              dat[0x14], dat[0x15], dat[0x0e]);
+      if (cal) {
+        calibrated = true;
+        send_subcommand(0x1, led_command, led_calibrated);
+        // printf("finished calibration\n");
+        // usleep(1000000);
 
-    bool cal = do_calibrate(dat[0x10], dat[0x11], dat[0x12], dat[0x13],
-                            dat[0x14], dat[0x15], dat[0x0e]);
-    if (cal) {
-      calibrated = true;
-      send_subcommand(0x1, led_command, led_calibrated);
-      // printf("finished calibration\n");
-      // usleep(1000000);
-
-      // write calibration data to file
-      std::ofstream calibration_file;
-      calibration_file.open("procon_calibration_data",
-                            std::ios::out | std::ios::binary);
-      calibration_file.write((char *)&left_x_min, sizeof(uchar));
-      calibration_file.write((char *)&left_x_max, sizeof(uchar));
-      calibration_file.write((char *)&left_y_min, sizeof(uchar));
-      calibration_file.write((char *)&left_y_max, sizeof(uchar));
-      calibration_file.write((char *)&right_x_min, sizeof(uchar));
-      calibration_file.write((char *)&right_x_max, sizeof(uchar));
-      calibration_file.write((char *)&right_y_min, sizeof(uchar));
-      calibration_file.write((char *)&right_y_max, sizeof(uchar));
-      calibration_file.close();
-      green();
-      printf("Wrote calibration data to file!\n");
-      normal();
+        // write calibration data to file
+        std::ofstream calibration_file;
+        calibration_file.open("procon_calibration_data",
+                              std::ios::out | std::ios::binary);
+        calibration_file.write((char *)&left_x_min, sizeof(uchar));
+        calibration_file.write((char *)&left_x_max, sizeof(uchar));
+        calibration_file.write((char *)&left_y_min, sizeof(uchar));
+        calibration_file.write((char *)&left_y_max, sizeof(uchar));
+        calibration_file.write((char *)&right_x_min, sizeof(uchar));
+        calibration_file.write((char *)&right_x_max, sizeof(uchar));
+        calibration_file.write((char *)&right_y_min, sizeof(uchar));
+        calibration_file.write((char *)&right_y_max, sizeof(uchar));
+        calibration_file.close();
+        green();
+        printf("Wrote calibration data to file!\n");
+        normal();
+      }
     }
 
     // std::ofstream out("calibration_data");
@@ -692,19 +617,20 @@ public:
     printf("Perform calibration again and press the square share button!\n");
     normal();
     read_calibration_from_file = false;
+    share_button_free = false;
     // usleep(1000*1000);
   }
 
   const void map_sticks(uchar &left_x, uchar &left_y, uchar &right_x,
                         uchar &right_y) {
-    left_x = uchar(clamp((float)(left_x - left_x_min) /
-                         (float)(left_x_max - left_x_min) * 255.f));
-    left_y = uchar(clamp((float)(left_y - left_y_min) /
-                         (float)(left_y_max - left_y_min) * 255.f));
-    right_x = uchar(clamp((float)(right_x - right_x_min) /
-                          (float)(right_x_max - right_x_min) * 255.f));
-    right_y = uchar(clamp((float)(right_y - right_y_min) /
-                          (float)(right_y_max - right_y_min) * 255.f));
+    left_x = (uchar)(clamp((float)(left_x - left_x_min) /
+                           (float)(left_x_max - left_x_min) * 255.f));
+    left_y = (uchar)(clamp((float)(left_y - left_y_min) /
+                           (float)(left_y_max - left_y_min) * 255.f));
+    right_x = (uchar)(clamp((float)(right_x - right_x_min) /
+                            (float)(right_x_max - right_x_min) * 255.f));
+    right_y = (uchar)(clamp((float)(right_y - right_y_min) /
+                            (float)(right_y_max - right_y_min) * 255.f));
   }
 
   static const float clamp(float inp) {
@@ -774,117 +700,6 @@ public:
     normal();
     printf("\n");
     fflush(stdout);
-  }
-
-  void fill_new_array(exchange_array arr) {
-    for (size_t i = 0; i < 20; ++i) {
-      if (arr[i] == 0x00)
-        continue;
-
-      if (first[i] == 0x00) {
-        first[i] = arr[i];
-        continue;
-      }
-
-      if (first[i] == arr[i]) {
-        continue;
-      }
-
-      if (second[i] == 0x00) {
-        second[i] = arr[i];
-        continue;
-      }
-
-      if (second[i] == arr[i]) {
-        continue;
-      }
-
-      if (third[i] == 0x00) {
-        third[i] = arr[i];
-      }
-
-      if (third[i] == arr[i]) {
-        continue;
-      }
-
-      if (fourth[i] == 0x00) {
-        fourth[i] = arr[i];
-      }
-
-      if (fourth[i] == arr[i]) {
-        continue;
-      }
-
-      if (fifth[i] == 0x00) {
-        fifth[i] = arr[i];
-      }
-
-      if (fifth[i] == arr[i]) {
-        continue;
-      }
-
-      if (sixth[i] == 0x00) {
-        sixth[i] = arr[i];
-      }
-    }
-  }
-
-  void print_new_array(exchange_array arr) {
-
-    red();
-    for (size_t i = 0; i < 20; ++i) {
-      printf("%02d ", (int)i);
-    }
-    printf("\n");
-
-    for (size_t i = 0; i < 20; ++i) {
-      if (first[i] == 0x00)
-        blue();
-      else
-        yellow();
-      printf("%02X ", first[i]);
-    }
-    printf("\n");
-    for (size_t i = 0; i < 20; ++i) {
-      if (second[i] == 0x00)
-        blue();
-      else
-        yellow();
-      printf("%02X ", second[i]);
-    }
-    printf("\n");
-    for (size_t i = 0; i < 20; ++i) {
-      if (third[i] == 0x00)
-        blue();
-      else
-        yellow();
-      printf("%02X ", third[i]);
-    }
-    printf("\n");
-    for (size_t i = 0; i < 20; ++i) {
-      if (fourth[i] == 0x00)
-        blue();
-      else
-        yellow();
-      printf("%02X ", fourth[i]);
-    }
-    printf("\n");
-    for (size_t i = 0; i < 20; ++i) {
-      if (fifth[i] == 0x00)
-        blue();
-      else
-        yellow();
-      printf("%02X ", fifth[i]);
-    }
-    printf("\n");
-    for (size_t i = 0; i < 20; ++i) {
-      if (sixth[i] == 0x00)
-        blue();
-      else
-        yellow();
-      printf("%02X ", sixth[i]);
-    }
-    printf("\n\n");
   }
 
   int read(hid_device *device, unsigned char *data, size_t size) {
@@ -1008,13 +823,13 @@ public:
     if (b_y && !last_y)
       uinput_button_down(BTN_Y);
     if (b_d_down && !last_d_down)
-      uinput_button_down(BTN_BASE);
+      uinput_button_down(BTN_DPAD_DOWN);
     if (b_d_up && !last_d_up)
-      uinput_button_down(BTN_BASE2);
+      uinput_button_down(BTN_DPAD_UP);
     if (b_d_left && !last_d_left)
-      uinput_button_down(BTN_BASE3);
+      uinput_button_down(BTN_DPAD_LEFT);
     if (b_d_right && !last_d_right)
-      uinput_button_down(BTN_BASE4);
+      uinput_button_down(BTN_DPAD_RIGHT);
     if (b_plus && !last_plus)
       uinput_button_down(BTN_START);
     if (b_minus && !last_minus)
@@ -1044,13 +859,13 @@ public:
     if (!b_y && last_y)
       uinput_button_release(BTN_Y);
     if (!b_d_down && last_d_down)
-      uinput_button_release(BTN_BASE);
+      uinput_button_release(BTN_DPAD_DOWN);
     if (!b_d_up && last_d_up)
-      uinput_button_release(BTN_BASE2);
+      uinput_button_release(BTN_DPAD_UP);
     if (!b_d_left && last_d_left)
-      uinput_button_release(BTN_BASE3);
+      uinput_button_release(BTN_DPAD_LEFT);
     if (!b_d_right && last_d_right)
-      uinput_button_release(BTN_BASE4);
+      uinput_button_release(BTN_DPAD_RIGHT);
     if (!b_plus && last_plus)
       uinput_button_release(BTN_START);
     if (!b_minus && last_minus)
@@ -1090,6 +905,53 @@ public:
     last_y = b_y;
   }
 
+  void uinput_manage_joysticks(const char &dat0, const char &dat1,
+                               const char &dat2, const char &dat3,
+                               const char &dat4, const char &dat5) {
+    // extract data
+    uchar left_x = ((dat1 & 0x0F) << 4) | ((dat0 & 0xF0) >> 4);
+    uchar left_y = dat2;
+    uchar right_x = ((dat4 & 0x0F) << 4) | ((dat3 & 0xF0) >> 4);
+    uchar right_y = dat5;
+
+    // map data
+    map_sticks(left_x, left_y, right_x, right_y);
+
+    // write uinput
+    memset(&uinput_event, 0, sizeof(uinput_event));
+
+    // left_x = 0;
+    // left_y = 127;
+    // right_x = 255;
+    // right_y = 200;
+    gettimeofday(&uinput_event.time, NULL);
+
+    uinput_write_single_joystick(left_x, ABS_Z);
+    uinput_write_single_joystick(left_y, ABS_RX);
+    uinput_write_single_joystick(right_x, ABS_RY);
+    uinput_write_single_joystick(right_y, ABS_RZ);
+
+    // clear_console();
+    // printf("left_x: %i\n", (int)left_x);
+    // printf("left_y: %i\n", (int)left_y);
+    // printf("right_x: %i\n", (int)right_x);
+    // printf("right_y: %i\n", (int)right_y);
+  }
+
+  void uinput_write_single_joystick(const int &val, const int &cod) {
+
+    uinput_event.type = EV_ABS;
+    uinput_event.code = cod; // BTN_A;
+    uinput_event.value = (int)val;
+
+    int ret = write(uinput_fd, &uinput_event, sizeof(uinput_event));
+    if (ret < 0) {
+      red();
+      printf("ERROR: write in button_down() returned %i\n", ret);
+      normal();
+    }
+  }
+
   void uinput_button_down(const int &cod) {
 
     // press button
@@ -1117,7 +979,7 @@ public:
       normal();
     }
 
-    printf("PRessed button %u\n", cod);
+    // printf("PRessed button %u\n", cod);
   }
 
   void uinput_button_release(const int &cod) {
@@ -1145,20 +1007,17 @@ public:
     strncpy(uinput_device.name, "Nintendo Switch Pro Controller USB",
             UINPUT_MAX_NAME_SIZE);
 
-    /*
-     * The ioctls below will enable the device that is about to be
-     * created, to pass key events, in this case the space key.
-     */
+    // buttons
     ioctl(uinput_fd, UI_SET_EVBIT, EV_KEY);
 
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_A);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_B);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_X);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_Y);
-    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_BASE);
-    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_BASE2);
-    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_BASE3);
-    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_BASE4);
+    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_DPAD_DOWN);
+    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_DPAD_UP);
+    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_DPAD_LEFT);
+    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_DPAD_RIGHT);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_GAMEPAD);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_TL);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_TL2);
@@ -1169,7 +1028,23 @@ public:
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_START);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_SELECT);
 
-    ioctl(uinput_fd, UI_SET_KEYBIT, KEY_A); // XXX
+    // joysticks
+    ioctl(uinput_fd, UI_SET_EVBIT, EV_ABS);
+
+    ioctl(uinput_fd, UI_SET_ABSBIT, ABS_Z);
+    ioctl(uinput_fd, UI_SET_ABSBIT, ABS_RX);
+    ioctl(uinput_fd, UI_SET_ABSBIT, ABS_RY); // Z and RX for right joystick...
+    ioctl(uinput_fd, UI_SET_ABSBIT,
+          ABS_RZ); //... weird, but that is how it's usually done.
+
+    uinput_device.absmin[ABS_Z] = 0;
+    uinput_device.absmax[ABS_Z] = 255;
+    uinput_device.absmin[ABS_RX] = 0;
+    uinput_device.absmax[ABS_RX] = 255;
+    uinput_device.absmin[ABS_RY] = 0;
+    uinput_device.absmax[ABS_RY] = 255;
+    uinput_device.absmin[ABS_RZ] = 0;
+    uinput_device.absmax[ABS_RZ] = 255;
 
     write(uinput_fd, &uinput_device, sizeof(uinput_device));
 
@@ -1177,56 +1052,12 @@ public:
       return -1;
     }
 
-    yellow();
+    green();
     printf("Created uinput device!\n");
     normal();
 
     return 0;
   }
-
-  /*
-   * On UI_DEV_CREATE the kernel will create the device node for this
-   * device. We are inserting a pause here so that userspace has time
-   * to detect, initialize the new device, and can start listening to
-   * the event, otherwise it will not notice the event we are about
-   * to send. This pause is only needed in our example code!
-   */
-  // sleep(1);
-
-  // /* Key press, report the event, send key release, and report again */
-  // emit(uinput_fd, EV_KEY, KEY_F, 1);
-  // emit(uinput_fd, EV_SYN, SYN_REPORT, 0);
-  // emit(uinput_fd, EV_KEY, KEY_F, 0);
-  // emit(uinput_fd, EV_SYN, SYN_REPORT, 0);
-
-  // sleep(1);
-  // emit(uinput_fd, EV_KEY, KEY_F, 1);
-  // emit(uinput_fd, EV_SYN, SYN_REPORT, 0);
-  // emit(uinput_fd, EV_KEY, KEY_F, 0);
-  // emit(uinput_fd, EV_SYN, SYN_REPORT, 0);
-
-  // sleep(1);
-  // emit(uinput_fd, EV_KEY, KEY_C, 1);
-  // emit(uinput_fd, EV_SYN, SYN_REPORT, 0);
-  // emit(uinput_fd, EV_KEY, KEY_C, 0);
-  // emit(uinput_fd, EV_SYN, SYN_REPORT, 0);
-
-  // sleep(1);
-  // emit(uinput_fd, EV_KEY, KEY_K, 1);
-  // emit(uinput_fd, EV_SYN, SYN_REPORT, 0);
-  // emit(uinput_fd, EV_KEY, KEY_K, 0);
-  // emit(uinput_fd, EV_SYN, SYN_REPORT, 0);
-
-  // printf("don\n");
-
-  /*
-   * Give userspace some time to read the events before we destroy the
-   * device with UI_DEV_DESTOY.
-   */
-  // sleep(1);
-
-  // while (true) {
-  // }
 
   void uinput_destroy() {
     ioctl(uinput_fd, UI_DEV_DESTROY);
@@ -1258,6 +1089,14 @@ public:
   }
   static const void green() {
     printf("%s", KGRN);
+    fflush(stdout);
+  }
+  static const void magenta() {
+    printf("%s", KMAG);
+    fflush(stdout);
+  }
+  static const void cyan() {
+    printf("%s", KCYN);
     fflush(stdout);
   }
   std::clock_t last_time;
@@ -1299,7 +1138,7 @@ public:
   bool calibrated = false;
   bool read_calibration_from_file =
       true; // will be set to false in decalibrate or with flags
-
+  bool share_button_free = false; // used for recalibration (press share & home)
   uchar left_x_min = 0x7e;
   uchar left_y_min = 0x7e;
   uchar right_x_min = 0x7e;
