@@ -511,7 +511,6 @@ class ProController
         if (mid & byte_button_value(home))
         {
             printf("home\n");
-            //decalibrate();
         }
         if (mid & byte_button_value(plus))
             printf("plus\n");
@@ -563,67 +562,47 @@ class ProController
             decalibrate();
         }
         //print_buttons(dat[0x0f], dat[0x0e], dat[0x0d]);
-        print_sticks(dat[0x10], dat[0x11], dat[0x12], dat[0x13], dat[0x14], dat[0x15]);
+        //print_sticks(dat[0x10], dat[0x11], dat[0x12], dat[0x13], dat[0x14], dat[0x15]);
         //print_exchange_array(dat);
         return 0;
     }
 
     void calibrate()
     {
-        std::ifstream myReadFile;
-        uchar output[8];
-        myReadFile.open("procon_calibration_data", std::ios::in | std::ios::binary);
-        if (myReadFile)
+        if (read_calibration_from_file)
         {
+            std::ifstream myReadFile;
+            uchar output[8];
+            myReadFile.open("procon_calibration_data", std::ios::in | std::ios::binary);
+            if (myReadFile)
+            {
 
-            //while (!myReadFile.eof())
+                //while (!myReadFile.eof())
 
-            myReadFile.read((char *)&left_x_min, sizeof(uchar));
-            myReadFile.read((char *)&left_x_max, sizeof(uchar));
-            myReadFile.read((char *)&left_y_min, sizeof(uchar));
-            myReadFile.read((char *)&left_y_max, sizeof(uchar));
-            myReadFile.read((char *)&right_x_min, sizeof(uchar));
-            myReadFile.read((char *)&right_x_max, sizeof(uchar));
-            myReadFile.read((char *)&right_y_min, sizeof(uchar));
-            myReadFile.read((char *)&right_y_max, sizeof(uchar));
+                myReadFile.read((char *)&left_x_min, sizeof(uchar));
+                myReadFile.read((char *)&left_x_max, sizeof(uchar));
+                myReadFile.read((char *)&left_y_min, sizeof(uchar));
+                myReadFile.read((char *)&left_y_max, sizeof(uchar));
+                myReadFile.read((char *)&right_x_min, sizeof(uchar));
+                myReadFile.read((char *)&right_x_max, sizeof(uchar));
+                myReadFile.read((char *)&right_y_min, sizeof(uchar));
+                myReadFile.read((char *)&right_y_max, sizeof(uchar));
 
-            green();
-            printf("Read calibration data from file! ");
-            yellow();
-            printf("Use --calibrate or -c to calibrate again!\n");
-            normal();
+                green();
+                printf("Read calibration data from file! ");
+                yellow();
+                printf("Use --calibrate or -c to calibrate again!\n");
+                normal();
 
-            calibrated = true;
-            send_subcommand(0x1, ledCommand, led_calibrated);
+                calibrated = true;
+                send_subcommand(0x1, ledCommand, led_calibrated);
 
-            return;
+                return;
 
-            // printf("x_left_min:%d\n", mi_l_x);
-            // printf("real%d\n", left_x_min);
+            }
 
-            // printf("xlma:%d\n", ma_l_x);
-            // printf("real%d\n", left_x_max);
-
-            // printf("ylmi:%d\n", mi_l_y);
-            // printf("real%d\n", left_y_min);
-
-            // printf("ylma:%d\n", ma_l_y);
-            // printf("real%d\n", left_y_max);
-
-            // printf("xrmi:%d\n", mi_r_x);
-            // printf("real%d\n", right_x_min);
-
-            // printf("xrma:%d\n", ma_r_x);
-            // printf("real%d\n", right_x_max);
-
-            // printf("yrmi:%d\n", mi_r_y);
-            // printf("real%d\n", right_y_min);
-
-            // printf("yrma:%d\n", ma_r_y);
-            // printf("real%d\n\n", right_y_max);
+            myReadFile.close();
         }
-
-        myReadFile.close();
 
         if (!controller_ptr)
         {
@@ -650,6 +629,8 @@ class ProController
         {
             calibrated = true;
             send_subcommand(0x1, ledCommand, led_calibrated);
+            //printf("finished calibration\n");
+            //usleep(1000000);
 
             //write calibration data to file
             std::ofstream calibration_file;
@@ -705,11 +686,6 @@ class ProController
         // printf("right_x_max: %u\n", right_x_max);
         // printf("right_y_max: %u\n\n", right_y_max);
 
-        if (left_x == 240)
-        {
-            printf("240!\n");
-            usleep(1000 * 10 * 1000);
-        }
 
         return (mid_buttons & byte_button_value(share));
     }
@@ -731,6 +707,8 @@ class ProController
         yellow();
         printf("Perform calibration again and press the square share button!\n");
         normal();
+        read_calibration_from_file = false;
+        //usleep(1000*1000);
     }
 
     const void map_sticks(uchar &left_x, uchar &left_y, uchar &right_x, uchar &right_y)
@@ -1092,6 +1070,7 @@ class ProController
 
     bool is_opened = false;
     bool calibrated = false;
+    bool read_calibration_from_file = true; // will be set to false in decalibrate or with flags
 
     uchar left_x_min = 0x7e;
     uchar left_y_min = 0x7e;
