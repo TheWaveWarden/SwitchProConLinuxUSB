@@ -7,6 +7,7 @@ int main(int argc, char *argv[])
 {
   bool help = false;
   bool force_calibration = false;
+  bool show_version= false;
 
   for (size_t i = 1; i < argc; ++i)
   {
@@ -24,6 +25,11 @@ int main(int argc, char *argv[])
       force_calibration = true;
       option_found = true;
     }
+    if (std::string(argv[i]) == "--version")
+    {
+      show_version = true;
+      option_found = true;
+    }
     if (!option_found)
     {
       std::cout << "Unknown option " << argv[i] << ". For usage, type 'procon_driver --help'" << std::endl;
@@ -31,17 +37,28 @@ int main(int argc, char *argv[])
     }
   }
 
+  if (help)
+  {
+    printf("Usage: procon_driver [OPTIONS]\noptions are:\n -h --help           get help on usage at start\n -c --calibration    force calibration at start\n\n");
+    return 0;
+  }
+
+  if(show_version) {
+    std::cout << "Version is " << PROCON_DRIVER_VERSION << std::endl;
+    return 0;
+  }
+
+
+
   printf("\n-------------------------------------------------------------------------------------------\n");
   printf("| %sNintendo Switch Pro-Controller USB driver for linux based systems. %sCurrent version: ", KGRN, KNRM);
   printf(PROCON_DRIVER_VERSION);
   printf(" |\n-------------------------------------------------------------------------------------------");
   printf("\n\n%s", KNRM);
 
-  if (help)
-  {
-    printf("Usage: procon_driver [OPTIONS]\noptions are:\n -h --help           get help on usage at start\n -c --calibration    force calibration at start\n\n");
-    return 0;
-  }
+  
+
+  
 
   ProController controller;
   hid_init();
@@ -125,8 +142,20 @@ int main(int argc, char *argv[])
       ProController::yellow();
       printf("Move your analog sticks to the maxima and press the square 'share' button afterwards!\n");
       ProController::normal();
+
     }
+
+    if (controller.uinput_create()< 0) {
+      ProController::red();
+      printf("Failed to open uinput device!\n");
+      ProController::normal();
+    }
+
+
   }
+
+  
+  
 
   //controller.u_setup();
 
@@ -154,6 +183,7 @@ int main(int argc, char *argv[])
   for (short unsigned i = 0; i < MAX_N_CONTROLLERS; ++i)
   {
     controller.close_device();
+    controller.uinput_destroy();
   }
   printf("\n");
   return 0;
