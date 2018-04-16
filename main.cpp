@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
   {
     ProController::green();
     printf("Opened controller!\n");
-    if (!controller.read_calibration_from_file)
+    if (!controller.read_calibration_from_file || !controller.calibration_file_exists())
     {
       ProController::blue();
       printf("Now entering calibration mode. \n");
