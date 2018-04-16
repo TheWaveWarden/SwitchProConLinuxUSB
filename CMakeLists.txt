@@ -8,8 +8,8 @@ project(procon_driver)
 find_library(HIDAPI_LIBRARY
 	NAMES hidapi hidapi-libusb REQUIRED)
 
-find_library(EVDEV_LIBRARY
-	NAMES evdev REQUIRED)
+#find_library(EVDEV_LIBRARY
+#	NAMES evdev REQUIRED)
 
 find_library(TESTLIB_LIBRARY2 evdev)
 
@@ -35,9 +35,9 @@ endif()
 #add_library (libshit libevdev/libevdev/libevdev.c)
 
 
-if(EVDEV_FOUND)
-	set(EVDEV_LIBRARIES "${EVDEV_LIBRARY}")
-endif()
+#if(EVDEV_FOUND)
+#	set(EVDEV_LIBRARIES "${EVDEV_LIBRARY}")
+#endif()
 
 mark_as_advanced(HIDAPI_INCLUDE_DIR HIDAPI_LIBRARY)
 
@@ -52,4 +52,4 @@ set(MAIN main.cpp)
 MESSAGE( STATUS "CMAKE_BINARY_DIR:         " ${HIDAPI_INCLUDE_DIR} )
 
 add_executable(${PROJECT_NAME} ${MAIN})
-target_link_libraries(${PROJECT_NAME} ${HIDAPI_LIBRARIES} ${TESTLIB_LIBRARY2})#libshit)# ${TESTLIB_LIBRARY2})#libshit)
+target_link_libraries(${PROJECT_NAME} ${HIDAPI_LIBRARIES}) #${TESTLIB_LIBRARY2})#libshit)# ${TESTLIB_LIBRARY2})#libshit)

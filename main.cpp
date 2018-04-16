@@ -155,11 +155,11 @@ int main(int argc, char *argv[])
       ProController::normal();
     }
 
-    if(controller.libevdev_test() < 0) {
-      ProController::red();
-      printf("Failed to open libevdev device!\n");
-      ProController::normal();
-    }
+    // if(controller.libevdev_test() < 0) {
+    //   ProController::red();
+    //   printf("Failed to open libevdev device!\n");
+    //   ProController::normal();
+    // }
 
 
   }

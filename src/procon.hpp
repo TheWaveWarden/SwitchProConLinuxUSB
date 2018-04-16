@@ -17,11 +17,11 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <libevdev/libevdev.h>
+//#include <libevdev/libevdev.h>
 // #include <libevdev/libevdev-uinput.h>
 //#include <optional>
 
-#define PROCON_DRIVER_VERSION "0.6"
+#define PROCON_DRIVER_VERSION "0.7"
 
 #define KNRM "\x1B[0m"
 #define KRED "\x1B[31m"
@@ -469,6 +469,7 @@ public:
     uinput_manage_buttons(dat[0x0f], dat[0x0e], dat[0x0d]);
     uinput_manage_joysticks(dat[0x10], dat[0x11], dat[0x12], dat[0x13],
                             dat[0x14], dat[0x15]);
+    uinput_manage_dpad(dat[0x0f]);
 
     // print_buttons(dat[0x0f], dat[0x0e], dat[0x0d]);
     // print_sticks(dat[0x10], dat[0x11], dat[0x12], dat[0x13], dat[0x14],
@@ -615,7 +616,7 @@ public:
     right_x_max = center;
     calibrated = false;
     send_subcommand(0x1, led_command, led_calibration);
-    red();
+    magenta();
     printf("Controller decalibrated!\n");
     yellow();
     printf("Perform calibration again and press the square share button!\n");
@@ -718,11 +719,14 @@ public:
   int open_device(unsigned short vendor_id, unsigned short product_id,
                   const wchar_t *serial_number, unsigned short n_controll) {
     controller_ptr = hid_open(vendor_id, product_id, serial_number);
+    // controller_ptr = hid_open_path("/dev/input/hidraw0");
     is_opened = true;
 
     if (!controller_ptr) {
       return -1;
     }
+    // hid_device_info *info = hid_open(vendor_id, product_id, serial_number);
+    // std::cout<< "PATH: " << info->path << std::endl;;
 
     n_controller = n_controll;
     ven_id = vendor_id;
@@ -795,13 +799,44 @@ public:
   //         UINPUT
   //-------------------------
 
-  void uinput_manage_buttons(const char &left, const char &mid,
-                             const char &right) {
-
+  void uinput_manage_dpad(const char &left) {
     bool b_d_left = left & byte_button_value(d_left);
     bool b_d_right = left & byte_button_value(d_right);
     bool b_d_up = left & byte_button_value(d_up);
     bool b_d_down = left & byte_button_value(d_down);
+
+    memset(&uinput_event, 0, sizeof(uinput_event));
+    gettimeofday(&uinput_event.time, NULL);
+
+    if (b_d_left) {
+      uinput_write_single_joystick(-1, ABS_HAT0X);
+    } else if (b_d_right) {
+      uinput_write_single_joystick(1, ABS_HAT0X);
+    } else if (!b_d_left && !b_d_right) {
+      uinput_write_single_joystick(0, ABS_HAT0X);
+    }
+    if (b_d_down) {
+      uinput_write_single_joystick(-1, ABS_HAT0Y);
+    } else if (b_d_up) {
+      uinput_write_single_joystick(1, ABS_HAT0Y);
+    } else if (!b_d_down && !b_d_up) {
+      uinput_write_single_joystick(0, ABS_HAT0Y);
+    }
+
+    // send report
+    uinput_event.type = EV_SYN;
+    uinput_event.code = SYN_REPORT;
+    uinput_event.value = 0;
+    write(uinput_fd, &uinput_event, sizeof(uinput_event));
+  }
+
+  void uinput_manage_buttons(const char &left, const char &mid,
+                             const char &right) {
+
+    // bool b_d_left = left & byte_button_value(d_left);
+    // bool b_d_right = left & byte_button_value(d_right);
+    // bool b_d_up = left & byte_button_value(d_up);
+    // bool b_d_down = left & byte_button_value(d_down);
     bool b_L1 = left & byte_button_value(L1);
     bool b_L2 = left & byte_button_value(L2);
     bool b_L3 = mid & byte_button_value(L3);
@@ -819,21 +854,21 @@ public:
 
     // press
     if (b_a && !last_a)
-      uinput_button_down(BTN_A);
+      uinput_button_down(BTN_EAST);
     if (b_b && !last_b)
-      uinput_button_down(BTN_B);
+      uinput_button_down(BTN_SOUTH);
     if (b_x && !last_x)
-      uinput_button_down(BTN_X);
+      uinput_button_down(BTN_NORTH);
     if (b_y && !last_y)
-      uinput_button_down(BTN_Y);
-    if (b_d_down && !last_d_down)
-      uinput_button_down(BTN_DPAD_DOWN);
-    if (b_d_up && !last_d_up)
-      uinput_button_down(BTN_DPAD_UP);
-    if (b_d_left && !last_d_left)
-      uinput_button_down(BTN_DPAD_LEFT);
-    if (b_d_right && !last_d_right)
-      uinput_button_down(BTN_DPAD_RIGHT);
+      uinput_button_down(BTN_WEST);
+    // if (b_d_down && !last_d_down)
+    //   uinput_button_down(BTN_DPAD_DOWN);
+    // if (b_d_up && !last_d_up)
+    //   uinput_button_down(BTN_DPAD_UP);
+    // if (b_d_left && !last_d_left)
+    //   uinput_button_down(BTN_DPAD_LEFT);
+    // if (b_d_right && !last_d_right)
+    //   uinput_button_down(BTN_DPAD_RIGHT);
     if (b_plus && !last_plus)
       uinput_button_down(BTN_START);
     if (b_minus && !last_minus)
@@ -855,21 +890,21 @@ public:
 
     // release
     if (!b_a && last_a)
-      uinput_button_release(BTN_A);
+      uinput_button_release(BTN_EAST);
     if (!b_b && last_b)
-      uinput_button_release(BTN_B);
+      uinput_button_release(BTN_SOUTH);
     if (!b_x && last_x)
-      uinput_button_release(BTN_X);
+      uinput_button_release(BTN_NORTH);
     if (!b_y && last_y)
-      uinput_button_release(BTN_Y);
-    if (!b_d_down && last_d_down)
-      uinput_button_release(BTN_DPAD_DOWN);
-    if (!b_d_up && last_d_up)
-      uinput_button_release(BTN_DPAD_UP);
-    if (!b_d_left && last_d_left)
-      uinput_button_release(BTN_DPAD_LEFT);
-    if (!b_d_right && last_d_right)
-      uinput_button_release(BTN_DPAD_RIGHT);
+      uinput_button_release(BTN_WEST);
+    // if (!b_d_down && last_d_down)
+    //   uinput_button_release(BTN_DPAD_DOWN);
+    // if (!b_d_up && last_d_up)
+    //   uinput_button_release(BTN_DPAD_UP);
+    // if (!b_d_left && last_d_left)
+    //   uinput_button_release(BTN_DPAD_LEFT);
+    // if (!b_d_right && last_d_right)
+    //   uinput_button_release(BTN_DPAD_RIGHT);
     if (!b_plus && last_plus)
       uinput_button_release(BTN_START);
     if (!b_minus && last_minus)
@@ -889,10 +924,10 @@ public:
     if (!b_L1 && last_L1)
       uinput_button_release(BTN_TL);
 
-    last_d_left = b_d_left;
-    last_d_right = b_d_right;
-    last_d_up = b_d_up;
-    last_d_down = b_d_down;
+    // last_d_left = b_d_left;
+    // last_d_right = b_d_right;
+    // last_d_up = b_d_up;
+    // last_d_down = b_d_down;
     last_L1 = b_L1;
     last_L2 = b_L2;
     last_L3 = b_L3;
@@ -935,6 +970,12 @@ public:
     uinput_write_single_joystick(right_x, ABS_RY);
     uinput_write_single_joystick(right_y, ABS_RZ);
 
+    // send report
+    uinput_event.type = EV_SYN;
+    uinput_event.code = SYN_REPORT;
+    uinput_event.value = 0;
+    write(uinput_fd, &uinput_event, sizeof(uinput_event));
+
     // clear_console();
     // printf("left_x: %i\n", (int)left_x);
     // printf("left_y: %i\n", (int)left_y);
@@ -945,7 +986,7 @@ public:
   void uinput_write_single_joystick(const int &val, const int &cod) {
 
     uinput_event.type = EV_ABS;
-    uinput_event.code = cod; // BTN_A;
+    uinput_event.code = cod; // BTN_EAST;
     uinput_event.value = (int)val;
 
     int ret = write(uinput_fd, &uinput_event, sizeof(uinput_event));
@@ -962,7 +1003,7 @@ public:
     memset(&uinput_event, 0, sizeof(uinput_event));
     gettimeofday(&uinput_event.time, NULL);
     uinput_event.type = EV_KEY;
-    uinput_event.code = cod; // BTN_A;
+    uinput_event.code = cod; // BTN_EAST;
     uinput_event.value = 1;
     int ret = write(uinput_fd, &uinput_event, sizeof(uinput_event));
     if (ret < 0) {
@@ -1008,20 +1049,28 @@ public:
 
     memset(&uinput_device, 0, sizeof(uinput_device));
 
+    // strncpy(uinput_device.name, "Nintendo Switch Pro Controller USB",
+    //        UINPUT_MAX_NAME_SIZE);
     strncpy(uinput_device.name, "Nintendo Switch Pro Controller USB",
             UINPUT_MAX_NAME_SIZE);
 
     // buttons
     ioctl(uinput_fd, UI_SET_EVBIT, EV_KEY);
 
-    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_A);
-    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_B);
-    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_X);
-    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_Y);
-    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_DPAD_DOWN);
-    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_DPAD_UP);
-    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_DPAD_LEFT);
-    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_DPAD_RIGHT);
+    // sudo xboxdrv --evdev /dev/input/event2 --evdev-absmap
+    // ABS_Z=x1,ABS_RX=y1,ABS_RY=x2,ABS_RZ=y2,ABS_HAT0X=dpad_x,ABS_HAT0Y=dpad_y
+    // --axismap -Y1=Y1,-Y2=Y2 --evdev-keymap
+    // BTN_SOUTH=a,BTN_EAST=b,BTN_WEST=x,BTN_NORTH=y,BTN_TL=lb,BTN_TR=rb,BTN_TL2=lt,BTN_TR2=rt,BTN_THUMBL=tl,BTN_THUMBR=tr,BTN_SELECT=back,BTN_START=start
+    // --silent &
+
+    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_EAST);
+    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_SOUTH);
+    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_NORTH);
+    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_WEST);
+    // ioctl(uinput_fd, UI_SET_KEYBIT, BTN_DPAD_DOWN);
+    // ioctl(uinput_fd, UI_SET_KEYBIT, BTN_DPAD_UP);
+    // ioctl(uinput_fd, UI_SET_KEYBIT, BTN_DPAD_LEFT);
+    // ioctl(uinput_fd, UI_SET_KEYBIT, BTN_DPAD_RIGHT);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_GAMEPAD);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_TL);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_TL2);
@@ -1040,6 +1089,8 @@ public:
     ioctl(uinput_fd, UI_SET_ABSBIT, ABS_RY); // Z and RX for right joystick...
     ioctl(uinput_fd, UI_SET_ABSBIT,
           ABS_RZ); //... weird, but that is how it's usually done.
+    ioctl(uinput_fd, UI_SET_ABSBIT, ABS_HAT0X);
+    ioctl(uinput_fd, UI_SET_ABSBIT, ABS_HAT0Y);
 
     uinput_device.absmin[ABS_Z] = 0;
     uinput_device.absmax[ABS_Z] = 255;
@@ -1049,6 +1100,10 @@ public:
     uinput_device.absmax[ABS_RY] = 255;
     uinput_device.absmin[ABS_RZ] = 0;
     uinput_device.absmax[ABS_RZ] = 255;
+    uinput_device.absmin[ABS_HAT0X] = -1;
+    uinput_device.absmax[ABS_HAT0X] = 1;
+    uinput_device.absmin[ABS_HAT0Y] = -1;
+    uinput_device.absmax[ABS_HAT0Y] = 1;
 
     write(uinput_fd, &uinput_device, sizeof(uinput_device));
 
@@ -1079,19 +1134,19 @@ public:
   //                   LIBEVDEV
   //-----------------------------------------------
 
-  int libevdev_test() {
-    struct libevdev *dev = NULL;
-    int fd;
-    int rc = 1;
+  // int libevdev_test() {
+  //   struct libevdev *dev = NULL;
+  //   int fd;
+  //   int rc = 1;
 
-    fd = open("/dev/input/js0", O_RDONLY | O_NONBLOCK);
-    rc = libevdev_new_from_fd(fd, &dev);
-    if (rc < 0) {
-      fprintf(stderr, "Failed to init libevdev (%s)\n", strerror(-rc));
-      exit(1);
-    }
-    printf("Input device name: \"%s\"\n", libevdev_get_name(dev));
-  }
+  //   fd = open("/dev/input/js0", O_RDONLY | O_NONBLOCK);
+  //   rc = libevdev_new_from_fd(fd, &dev);
+  //   if (rc < 0) {
+  //     fprintf(stderr, "Failed to init libevdev (%s)\n", strerror(-rc));
+  //     exit(1);
+  //   }
+  //   printf("Input device name: \"%s\"\n", libevdev_get_name(dev));
+  // }
 
   static const void red() {
     printf("%s", KRED);
@@ -1170,10 +1225,10 @@ public:
   uchar right_x_max = 0x7e;
   uchar right_y_max = 0x7e;
 
-  bool last_d_left = false;
-  bool last_d_right = false;
-  bool last_d_up = false;
-  bool last_d_down = false;
+  // bool last_d_left = false;
+  // bool last_d_right = false;
+  // bool last_d_up = false;
+  // bool last_d_down = false;
   bool last_L1 = false;
   bool last_L2 = false;
   bool last_L3 = false;
