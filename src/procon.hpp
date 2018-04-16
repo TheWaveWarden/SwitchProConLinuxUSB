@@ -18,7 +18,7 @@
 #include <unistd.h>
 //#include <optional>
 
-#define PROCON_DRIVER_VERSION "0.5"
+#define PROCON_DRIVER_VERSION "0.6"
 
 #define KNRM "\x1B[0m"
 #define KRED "\x1B[31m"

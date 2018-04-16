@@ -51,10 +51,11 @@ int main(int argc, char *argv[])
 
 
   printf("\n-------------------------------------------------------------------------------------------\n");
-  printf("| %sNintendo Switch Pro-Controller USB driver for linux based systems. %sCurrent version: ", KGRN, KNRM);
+  printf("| %sNintendo Switch Pro-Controller USB driver for linux based systems. %sCurrent version: ", KGRN, KCYN);
   printf(PROCON_DRIVER_VERSION);
-  printf(" |\n-------------------------------------------------------------------------------------------");
+  printf("%s |\n-------------------------------------------------------------------------------------------",KNRM);
   printf("\n\n%s", KNRM);
+  fflush(stdout);
 
   
 
