@@ -7,3 +7,7 @@ This repository aims to provide a driver for the Nintendo Switch Pro Controller 
 
 - hidapi-libusb
 - udev/99-hid.rules
+
+# install
+
+
