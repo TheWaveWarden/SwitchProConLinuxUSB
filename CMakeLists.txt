@@ -11,6 +11,8 @@ find_library(HIDAPI_LIBRARY
 find_library(EVDEV_LIBRARY
 	NAMES evdev REQUIRED)
 
+find_library(TESTLIB_LIBRARY2 evdev)
+
 find_path(HIDAPI_INCLUDE_DIR
 	NAMES hidapi.h
 	PATH_SUFFIXES
@@ -30,6 +32,9 @@ if(HIDAPI_FOUND)
 	set(HIDAPI_INCLUDE_DIRS "${HIDAPI_INCLUDE_DIR}")
 endif()
 
+#add_library (libshit libevdev/libevdev/libevdev.c)
+
+
 if(EVDEV_FOUND)
 	set(EVDEV_LIBRARIES "${EVDEV_LIBRARY}")
 endif()
@@ -39,6 +44,7 @@ mark_as_advanced(HIDAPI_INCLUDE_DIR HIDAPI_LIBRARY)
 include_directories(
 	${HIDAPI_INCLUDE_DIRS}
 	"src/"
+	"libevdev/"
 )
 set(MAIN main.cpp)
 
@@ -46,4 +52,4 @@ set(MAIN main.cpp)
 MESSAGE( STATUS "CMAKE_BINARY_DIR:         " ${HIDAPI_INCLUDE_DIR} )
 
 add_executable(${PROJECT_NAME} ${MAIN})
-target_link_libraries(${PROJECT_NAME} ${HIDAPI_LIBRARIES} ${EVDEV_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${HIDAPI_LIBRARIES} ${TESTLIB_LIBRARY2})#libshit)# ${TESTLIB_LIBRARY2})#libshit)

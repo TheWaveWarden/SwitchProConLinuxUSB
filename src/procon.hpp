@@ -16,6 +16,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include <libevdev/libevdev.h>
+// #include <libevdev/libevdev-uinput.h>
 //#include <optional>
 
 #define PROCON_DRIVER_VERSION "0.6"
@@ -496,7 +499,8 @@ public:
         green();
         printf("Read calibration data from file! ");
         cyan();
-        printf("Press 'share' and 'home' to calibrate again or start with --calibrate or -c.\n");
+        printf("Press 'share' and 'home' to calibrate again or start with "
+               "--calibrate or -c.\n");
         normal();
 
         calibrated = true;
@@ -1069,6 +1073,24 @@ public:
     normal();
 
     return;
+  }
+
+  //-----------------------------------------------
+  //                   LIBEVDEV
+  //-----------------------------------------------
+
+  int libevdev_test() {
+    struct libevdev *dev = NULL;
+    int fd;
+    int rc = 1;
+
+    fd = open("/dev/input/js0", O_RDONLY | O_NONBLOCK);
+    rc = libevdev_new_from_fd(fd, &dev);
+    if (rc < 0) {
+      fprintf(stderr, "Failed to init libevdev (%s)\n", strerror(-rc));
+      exit(1);
+    }
+    printf("Input device name: \"%s\"\n", libevdev_get_name(dev));
   }
 
   static const void red() {
