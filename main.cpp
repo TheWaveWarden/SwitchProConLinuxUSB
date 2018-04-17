@@ -7,7 +7,7 @@ int main(int argc, char *argv[])
 {
   bool help = false;
   bool force_calibration = false;
-  bool show_version= false;
+  bool show_version = false;
 
   for (size_t i = 1; i < argc; ++i)
   {
@@ -43,23 +43,22 @@ int main(int argc, char *argv[])
     return 0;
   }
 
-  if(show_version) {
+  if (show_version)
+  {
     std::cout << "Version is " << PROCON_DRIVER_VERSION << std::endl;
     return 0;
   }
 
-
-
-  printf("\n-------------------------------------------------------------------------------------------\n");
-  printf("| %sNintendo Switch Pro-Controller USB driver for linux based systems. %sCurrent version: ", KGRN, KCYN);
+  printf("\n------------------------------------------------------------------------------------------\n");
+  printf("| ");
+  printf("%c[%d;%dmNintendo Switch Pro-Controller USB driver for linux based systems.%c[%dm ", 27, 1, 32, 27, 0);
+  printf("%c[%d;%dmVersion: ",27, 1, 36);
   printf(PROCON_DRIVER_VERSION);
-  printf("%s |\n-------------------------------------------------------------------------------------------",KNRM);
+  printf("%c[%dm ",27, 0);
+  
+  printf("%s |\n------------------------------------------------------------------------------------------", KNRM);
   printf("\n\n%s", KNRM);
   fflush(stdout);
-
-  
-
-  
 
   ProController controller;
   hid_init();
@@ -91,7 +90,7 @@ int main(int argc, char *argv[])
         opened = ret == 0;
         if (!opened)
         { // read timed out
-          
+
           if (ret == -1)
           {
             ProController::red();
@@ -139,19 +138,20 @@ int main(int argc, char *argv[])
   {
     ProController::green();
     printf("Opened controller!\n");
+
+    if (controller.uinput_create() < 0)
+    {
+      ProController::red();
+      printf("Failed to open uinput device!\n");
+      ProController::normal();
+    }
+
     if (!controller.read_calibration_from_file || !controller.calibration_file_exists())
     {
       ProController::blue();
       printf("Now entering calibration mode. \n");
-      ProController::yellow();
-      printf("Move your analog sticks to the maxima and press the square 'share' button afterwards!\n");
-      ProController::normal();
-
-    }
-
-    if (controller.uinput_create()< 0) {
-      ProController::red();
-      printf("Failed to open uinput device!\n");
+      ProController::cyan();
+      printf("%c[%d;%dmMove your analog sticks to the maxima and press the square 'share' button afterwards!\n%c[%dm", 27, 1, 36, 27, 0);
       ProController::normal();
     }
 
@@ -160,12 +160,7 @@ int main(int argc, char *argv[])
     //   printf("Failed to open libevdev device!\n");
     //   ProController::normal();
     // }
-
-
   }
-
-  
-  
 
   //controller.u_setup();
 

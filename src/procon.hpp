@@ -21,7 +21,7 @@
 // #include <libevdev/libevdev-uinput.h>
 //#include <optional>
 
-#define PROCON_DRIVER_VERSION "0.8"
+#define PROCON_DRIVER_VERSION "1.0 alpha"
 
 #define KNRM "\x1B[0m"
 #define KRED "\x1B[31m"
@@ -657,8 +657,8 @@ public:
     send_subcommand(0x1, led_command, led_calibration);
     magenta();
     printf("Controller decalibrated!\n");
-    yellow();
-    printf("Perform calibration again and press the square share button!\n");
+    cyan();
+    printf("%c[%d;%dmPerform calibration again and press the square 'share' button!\n%c[%dm", 27, 1, 36, 27, 0);
     normal();
     read_calibration_from_file = false;
     share_button_free = false;
@@ -1082,6 +1082,8 @@ public:
     // printf("right_y: %i\n", (int)right_y);
   }
 
+
+
   void uinput_write_single_joystick(const int &val, const int &cod)
   {
 
@@ -1367,6 +1369,8 @@ public:
   bool last_b = false;
   bool last_x = false;
   bool last_y = false;
+
+  bool dribbleMnode = false;
 
   // uinput
   struct uinput_user_dev uinput_device;
