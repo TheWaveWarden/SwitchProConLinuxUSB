@@ -12,14 +12,16 @@ cd ~/procon_driver
 ```
 3. Clone the repository here
 ```
-git clone https://github.com/FrotBot/SwitchProConLinuxUSB.git
+git clone https://github.com/FrotBot/SwitchProConLinuxUSB.git .
 ```
 4. install and build the driver
 ```
 bash install
 ```
 (You'll be prompted to type your password and press y a few times, it installs some libraries.)
+
 5. reboot your PC once to make the udev rules work
+
 6. Open terminal once more and navigate to the build directory in the install folder
 ```
 cd ~/procon_driver/build
