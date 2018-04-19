@@ -1,5 +1,5 @@
 #ifndef PROCON_DRIVER_H
-#define PROCON DRIVER_H
+#define PROCON_DRIVER_H
 
 //#define ROCKET_LEAGUE // You'll probably not want this!
 
