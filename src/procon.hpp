@@ -22,6 +22,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <cstdint>
 
 //#include <libevdev/libevdev.h>
 // #include <libevdev/libevdev-uinput.h>
@@ -67,13 +68,13 @@ class ProController {
     None
   };
 
-  using uchar = unsigned char;
-  static constexpr uchar led_command{0x30};
-  static constexpr uchar get_input{0x1f};
-  static constexpr uchar center{0x7e};
+
+  static constexpr uint8_t led_command{0x30};
+  static constexpr uint8_t get_input{0x1f};
+  static constexpr uint8_t center{0x7e};
   static constexpr size_t exchange_length{0x400};
   using exchange_array =
-      std::array<uchar, exchange_length>; // might need std::optional<>
+      std::array<uint8_t, exchange_length>; // might need std::optional<>
   // static constexpr size_t buflen{ 80 };
   // std::array<char, buflen> buffer;
 
@@ -81,7 +82,7 @@ public:
   // ProController() {}
   //~ProController() {}
 
-  static const uchar bit_position(ProController::BUTTONS button) {
+  static const uint8_t bit_position(ProController::BUTTONS button) {
     switch (button) {
     case d_left:
       return 0x04;
@@ -149,7 +150,7 @@ public:
     }
   }
 
-  static const uchar byte_button_value(ProController::BUTTONS button) {
+  static const uint8_t byte_button_value(ProController::BUTTONS button) {
     switch (button) {
     case d_left:
       return 0x08;
@@ -217,7 +218,7 @@ public:
     }
   }
 
-  static const uchar data_address(ProController::BUTTONS button) {
+  static const uint8_t data_address(ProController::BUTTONS button) {
     switch (button) {
     case d_left:
       return 0x0f;
@@ -304,9 +305,9 @@ public:
   // }
 
   template <size_t length>
-  exchange_array send_command(uchar command,
-                              std::array<uchar, length> const &data) {
-    std::array<uchar, length + 0x9> buffer;
+  exchange_array send_command(uint8_t command,
+                              std::array<uint8_t, length> const &data) {
+    std::array<uint8_t, length + 0x9> buffer;
     buffer.fill(0);
     buffer[0x0] = 0x80;
     buffer[0x1] = 0x92;
@@ -319,7 +320,7 @@ public:
   }
 
   template <size_t length>
-  exchange_array exchange(std::array<uchar, length> const &data,
+  exchange_array exchange(std::array<uint8_t, length> const &data,
                           bool timed = false, int *status = nullptr) {
 
     if (!controller_ptr) {
@@ -337,7 +338,7 @@ public:
       return {};
     }
 
-    std::array<uchar, exchange_length> ret;
+    std::array<uint8_t, exchange_length> ret;
     ret.fill(0);
     if (!timed)
       hid_read(controller_ptr, ret.data(), exchange_length);
@@ -359,10 +360,10 @@ public:
   }
 
   template <size_t length>
-  exchange_array send_subcommand(uchar command, uchar subcommand,
-                                 std::array<uchar, length> const &data) {
-    std::array<uchar, length + 10> buffer{
-        static_cast<uchar>(rumble_counter++ & 0xF),
+  exchange_array send_subcommand(uint8_t command, uint8_t subcommand,
+                                 std::array<uint8_t, length> const &data) {
+    std::array<uint8_t, length + 10> buffer{
+        static_cast<uint8_t>(rumble_counter++ & 0xF),
         0x00,
         0x01,
         0x40,
@@ -378,13 +379,13 @@ public:
     return send_command(command, buffer);
   }
 
-  // void print_sticks(const uchar &data0, const uchar &data1, const uchar &data2,
-  //                   const uchar &data3, const uchar &data4,
-  //                   const uchar &data5) {
-  //   uchar left_x = ((data1 & 0x0F) << 4) | ((data0 & 0xF0) >> 4);
-  //   uchar left_y = data2;
-  //   uchar right_x = ((data4 & 0x0F) << 4) | ((data3 & 0xF0) >> 4);
-  //   uchar right_y = data5;
+  // void print_sticks(const uint8_t &data0, const uint8_t &data1, const uint8_t &data2,
+  //                   const uint8_t &data3, const uint8_t &data4,
+  //                   const uint8_t &data5) {
+  //   uint8_t left_x = ((data1 & 0x0F) << 4) | ((data0 & 0xF0) >> 4);
+  //   uint8_t left_y = data2;
+  //   uint8_t right_x = ((data4 & 0x0F) << 4) | ((data3 & 0xF0) >> 4);
+  //   uint8_t right_y = data5;
 
   //   map_sticks(left_x, left_y, right_x, right_y);
 
@@ -403,10 +404,10 @@ public:
   //   // return 0;
   // }
 
-  // void print_buttons(const uchar &left, const uchar &mid, const uchar &right) {
-  //   // uchar left = buttons[0];
-  //   // uchar mid = buttons[1];
-  //   // uchar right = buttons[2];
+  // void print_buttons(const uint8_t &left, const uint8_t &mid, const uint8_t &right) {
+  //   // uint8_t left = buttons[0];
+  //   // uint8_t mid = buttons[1];
+  //   // uint8_t right = buttons[2];
 
   //   if (left & byte_button_value(d_left))
   //     printf("d_left\n");
@@ -492,21 +493,21 @@ public:
   void calibrate() {
     if (read_calibration_from_file) {
       std::ifstream myReadFile;
-      uchar output[8];
+      uint8_t output[8];
       myReadFile.open("procon_calibration_data",
                       std::ios::in | std::ios::binary);
       if (myReadFile) {
 
         // while (!myReadFile.eof())
 
-        myReadFile.read((char *)&left_x_min, sizeof(uchar));
-        myReadFile.read((char *)&left_x_max, sizeof(uchar));
-        myReadFile.read((char *)&left_y_min, sizeof(uchar));
-        myReadFile.read((char *)&left_y_max, sizeof(uchar));
-        myReadFile.read((char *)&right_x_min, sizeof(uchar));
-        myReadFile.read((char *)&right_x_max, sizeof(uchar));
-        myReadFile.read((char *)&right_y_min, sizeof(uchar));
-        myReadFile.read((char *)&right_y_max, sizeof(uchar));
+        myReadFile.read((char *)&left_x_min, sizeof(uint8_t));
+        myReadFile.read((char *)&left_x_max, sizeof(uint8_t));
+        myReadFile.read((char *)&left_y_min, sizeof(uint8_t));
+        myReadFile.read((char *)&left_y_max, sizeof(uint8_t));
+        myReadFile.read((char *)&right_x_min, sizeof(uint8_t));
+        myReadFile.read((char *)&right_x_max, sizeof(uint8_t));
+        myReadFile.read((char *)&right_y_min, sizeof(uint8_t));
+        myReadFile.read((char *)&right_y_max, sizeof(uint8_t));
 
         green();
         printf("Read calibration data from file! ");
@@ -559,14 +560,14 @@ public:
         std::ofstream calibration_file;
         calibration_file.open("procon_calibration_data",
                               std::ios::out | std::ios::binary);
-        calibration_file.write((char *)&left_x_min, sizeof(uchar));
-        calibration_file.write((char *)&left_x_max, sizeof(uchar));
-        calibration_file.write((char *)&left_y_min, sizeof(uchar));
-        calibration_file.write((char *)&left_y_max, sizeof(uchar));
-        calibration_file.write((char *)&right_x_min, sizeof(uchar));
-        calibration_file.write((char *)&right_x_max, sizeof(uchar));
-        calibration_file.write((char *)&right_y_min, sizeof(uchar));
-        calibration_file.write((char *)&right_y_max, sizeof(uchar));
+        calibration_file.write((char *)&left_x_min, sizeof(uint8_t));
+        calibration_file.write((char *)&left_x_max, sizeof(uint8_t));
+        calibration_file.write((char *)&left_y_min, sizeof(uint8_t));
+        calibration_file.write((char *)&left_y_max, sizeof(uint8_t));
+        calibration_file.write((char *)&right_x_min, sizeof(uint8_t));
+        calibration_file.write((char *)&right_x_max, sizeof(uint8_t));
+        calibration_file.write((char *)&right_y_min, sizeof(uint8_t));
+        calibration_file.write((char *)&right_y_max, sizeof(uint8_t));
         calibration_file.close();
         green();
         printf("Wrote calibration data to file!\n");
@@ -585,14 +586,14 @@ public:
     // out.close();
   }
 
-  bool do_calibrate(const uchar &stick0, const uchar &stick1,
-                    const uchar &stick2, const uchar &stick3,
-                    const uchar &stick4, const uchar &stick5,
-                    const uchar &mid_buttons) {
-    uchar left_x = ((stick1 & 0x0F) << 4) | ((stick0 & 0xF0) >> 4);
-    uchar left_y = stick2;
-    uchar right_x = ((stick4 & 0x0F) << 4) | ((stick3 & 0xF0) >> 4);
-    uchar right_y = stick5;
+  bool do_calibrate(const uint8_t &stick0, const uint8_t &stick1,
+                    const uint8_t &stick2, const uint8_t &stick3,
+                    const uint8_t &stick4, const uint8_t &stick5,
+                    const uint8_t &mid_buttons) {
+    uint8_t left_x = ((stick1 & 0x0F) << 4) | ((stick0 & 0xF0) >> 4);
+    uint8_t left_y = stick2;
+    uint8_t right_x = ((stick4 & 0x0F) << 4) | ((stick3 & 0xF0) >> 4);
+    uint8_t right_y = stick5;
 
     left_x_min = (left_x < left_x_min) ? left_x : left_x_min;
     left_y_min = (left_y < left_y_min) ? left_y : left_y_min;
@@ -639,15 +640,15 @@ public:
     // usleep(1000*1000);
   }
 
-  const void map_sticks(uchar &left_x, uchar &left_y, uchar &right_x,
-                        uchar &right_y) {
-    left_x = (uchar)(clamp((float)(left_x - left_x_min) /
+  const void map_sticks(uint8_t &left_x, uint8_t &left_y, uint8_t &right_x,
+                        uint8_t &right_y) {
+    left_x = (uint8_t)(clamp((float)(left_x - left_x_min) /
                            (float)(left_x_max - left_x_min) * 255.f));
-    left_y = (uchar)(clamp((float)(left_y - left_y_min) /
+    left_y = (uint8_t)(clamp((float)(left_y - left_y_min) /
                            (float)(left_y_max - left_y_min) * 255.f));
-    right_x = (uchar)(clamp((float)(right_x - right_x_min) /
+    right_x = (uint8_t)(clamp((float)(right_x - right_x_min) /
                             (float)(right_x_max - right_x_min) * 255.f));
-    right_y = (uchar)(clamp((float)(right_y - right_y_min) /
+    right_y = (uint8_t)(clamp((float)(right_y - right_y_min) /
                             (float)(right_y_max - right_y_min) * 255.f));
   }
 
@@ -691,11 +692,11 @@ public:
 
   /* Hackishly detects when the controller is trapped in a bad loop.
   Nothing to do here, need to restart driver :(*/
-  bool detect_bad_data(const uchar &dat1, const uchar &dat2) {
+  bool detect_bad_data(const uint8_t &dat1, const uint8_t &dat2) {
     return (dat2 == 0x01 && dat1 == 0x81) ? true : bad_data_detected;
   }
 
-  bool detect_useless_data(const uchar &dat) {
+  bool detect_useless_data(const uint8_t &dat) {
     if (dat == 0x30)
       n_bad_data_thirty++;
     if (dat == 0x00)
@@ -728,7 +729,7 @@ public:
     fflush(stdout);
   }
 
-  int read(hid_device *device, unsigned char *data, size_t size) {
+  int read(hid_device *device, uint8_t *data, size_t size) {
     int ret = hid_read(device, data, size);
     if (ret < 0) {
       printf("%sERROR: Couldn't read from device nr. %u%s\n", KRED,
@@ -812,7 +813,7 @@ public:
   //       blink_position = 0;
   //     }
   //   }
-  //   std::array<uchar,1> blink_command{{blink_array[blink_position]}};
+  //   std::array<uint8_t,1> blink_command{{blink_array[blink_position]}};
   //   send_subcommand(0x1, led_command, blink_command);
   // }
 
@@ -1012,10 +1013,10 @@ void uinput_manage_joysticks(const char &dat0, const char &dat1,
                              const char &dat2, const char &dat3,
                              const char &dat4, const char &dat5) {
   // extract data
-  uchar left_x = ((dat1 & 0x0F) << 4) | ((dat0 & 0xF0) >> 4);
-  uchar left_y = dat2;
-  uchar right_x = ((dat4 & 0x0F) << 4) | ((dat3 & 0xF0) >> 4);
-  uchar right_y = dat5;
+  uint8_t left_x = ((dat1 & 0x0F) << 4) | ((dat0 & 0xF0) >> 4);
+  uint8_t left_y = dat2;
+  uint8_t right_x = ((dat4 & 0x0F) << 4) | ((dat3 & 0xF0) >> 4);
+  uint8_t right_y = dat5;
 
   // map data
   map_sticks(left_x, left_y, right_x, right_y);
@@ -1241,21 +1242,21 @@ static const void cyan() {
 }
 std::clock_t last_time;
 
-std::array<uchar, 20> first{{0x0}};
-std::array<uchar, 20> second{{0x0}};
-std::array<uchar, 20> third{{0x0}};
-std::array<uchar, 20> fourth{{0x0}};
-std::array<uchar, 20> fifth{{0x0}};
-std::array<uchar, 20> sixth{{0x0}};
+std::array<uint8_t, 20> first{{0x0}};
+std::array<uint8_t, 20> second{{0x0}};
+std::array<uint8_t, 20> third{{0x0}};
+std::array<uint8_t, 20> fourth{{0x0}};
+std::array<uint8_t, 20> fifth{{0x0}};
+std::array<uint8_t, 20> sixth{{0x0}};
 
-uchar rumble_counter{0};
-const std::array<uchar, 1> led_calibration{{0xff}};
-const std::array<uchar, 1> led_calibrated{{0x01}};
-const std::array<uchar, 0> empty{{}};
-const std::array<uchar, 2> handshake{{0x80, 0x02}};
-const std::array<uchar, 2> switch_baudrate{{0x80, 0x03}};
-const std::array<uchar, 2> hid_only_mode{{0x80, 0x04}};
-// const std::array<uchar, 4> blink_array{{0x05, 0x10}};//, 0x04, 0x08}};
+uint8_t rumble_counter{0};
+const std::array<uint8_t, 1> led_calibration{{0xff}};
+const std::array<uint8_t, 1> led_calibrated{{0x01}};
+const std::array<uint8_t, 0> empty{{}};
+const std::array<uint8_t, 2> handshake{{0x80, 0x02}};
+const std::array<uint8_t, 2> switch_baudrate{{0x80, 0x03}};
+const std::array<uint8_t, 2> hid_only_mode{{0x80, 0x04}};
+// const std::array<uint8_t, 4> blink_array{{0x05, 0x10}};//, 0x04, 0x08}};
 
 // uint blink_position = 0;
 // size_t blink_counter = 0;
@@ -1279,14 +1280,14 @@ bool calibrated = false;
 bool read_calibration_from_file =
     true; // will be set to false in decalibrate or with flags
 bool share_button_free = false; // used for recalibration (press share & home)
-uchar left_x_min = 0x7e;
-uchar left_y_min = 0x7e;
-uchar right_x_min = 0x7e;
-uchar right_y_min = 0x7e;
-uchar left_x_max = 0x7e;
-uchar left_y_max = 0x7e;
-uchar right_x_max = 0x7e;
-uchar right_y_max = 0x7e;
+uint8_t left_x_min = 0x7e;
+uint8_t left_y_min = 0x7e;
+uint8_t right_x_min = 0x7e;
+uint8_t right_y_min = 0x7e;
+uint8_t left_x_max = 0x7e;
+uint8_t left_y_max = 0x7e;
+uint8_t right_x_max = 0x7e;
+uint8_t right_y_max = 0x7e;
 
 // bool last_d_left = false;
 // bool last_d_right = false;
