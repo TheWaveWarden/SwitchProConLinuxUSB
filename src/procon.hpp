@@ -286,23 +286,23 @@ public:
     }
   }
 
-  void timer() {
+  // void timer() {
 
-    using namespace std;
-    clock_t now = clock();
+  //   using namespace std;
+  //   clock_t now = clock();
 
-    double elapsed_secs = double(now - last_time) / CLOCKS_PER_SEC;
+  //   double elapsed_secs = double(now - last_time) / CLOCKS_PER_SEC;
 
-    last_time = now;
+  //   last_time = now;
 
-    printf("Time for last %u polls: %f seconds\n", n_print_cycle, elapsed_secs);
-    printf("Bad 0x00: %u\nBad 0x30: %u\n\n", n_bad_data_thirty,
-           n_bad_data_zero);
+  //   printf("Time for last %u polls: %f seconds\n", n_print_cycle, elapsed_secs);
+  //   printf("Bad 0x00: %u\nBad 0x30: %u\n\n", n_bad_data_thirty,
+  //          n_bad_data_zero);
 
-    print_cycle_counter = 0;
-    n_bad_data_thirty = 0;
-    n_bad_data_zero = 0;
-  }
+  //   print_cycle_counter = 0;
+  //   n_bad_data_thirty = 0;
+  //   n_bad_data_zero = 0;
+  // }
 
   template <size_t length>
   exchange_array send_command(uchar command,
@@ -379,74 +379,74 @@ public:
     return send_command(command, buffer);
   }
 
-  void print_sticks(const uchar &data0, const uchar &data1, const uchar &data2,
-                    const uchar &data3, const uchar &data4,
-                    const uchar &data5) {
-    uchar left_x = ((data1 & 0x0F) << 4) | ((data0 & 0xF0) >> 4);
-    uchar left_y = data2;
-    uchar right_x = ((data4 & 0x0F) << 4) | ((data3 & 0xF0) >> 4);
-    uchar right_y = data5;
+  // void print_sticks(const uchar &data0, const uchar &data1, const uchar &data2,
+  //                   const uchar &data3, const uchar &data4,
+  //                   const uchar &data5) {
+  //   uchar left_x = ((data1 & 0x0F) << 4) | ((data0 & 0xF0) >> 4);
+  //   uchar left_y = data2;
+  //   uchar right_x = ((data4 & 0x0F) << 4) | ((data3 & 0xF0) >> 4);
+  //   uchar right_y = data5;
 
-    map_sticks(left_x, left_y, right_x, right_y);
+  //   map_sticks(left_x, left_y, right_x, right_y);
 
-    clear_console();
-    yellow();
-    printf("left_x %d\n", left_x);
-    printf("left_y %d\n", left_y);
-    printf("right_x %d\n", right_x);
-    printf("right_y %d\n\n", right_y);
-    normal();
+  //   clear_console();
+  //   yellow();
+  //   printf("left_x %d\n", left_x);
+  //   printf("left_y %d\n", left_y);
+  //   printf("right_x %d\n", right_x);
+  //   printf("right_y %d\n\n", right_y);
+  //   normal();
 
-    // if(left_x == 0x00 || left_y == 0x00 || right_x == 0x00 || right_y == 0x00
-    // ) {
-    //     return -1;
-    // }
-    // return 0;
-  }
+  //   // if(left_x == 0x00 || left_y == 0x00 || right_x == 0x00 || right_y == 0x00
+  //   // ) {
+  //   //     return -1;
+  //   // }
+  //   // return 0;
+  // }
 
-  void print_buttons(const uchar &left, const uchar &mid, const uchar &right) {
-    // uchar left = buttons[0];
-    // uchar mid = buttons[1];
-    // uchar right = buttons[2];
+  // void print_buttons(const uchar &left, const uchar &mid, const uchar &right) {
+  //   // uchar left = buttons[0];
+  //   // uchar mid = buttons[1];
+  //   // uchar right = buttons[2];
 
-    if (left & byte_button_value(d_left))
-      printf("d_left\n");
-    if (left & byte_button_value(d_right))
-      printf("d_right\n");
-    if (left & byte_button_value(d_up))
-      printf("d_up\n");
-    if (left & byte_button_value(d_down))
-      printf("d_down\n");
-    if (left & byte_button_value(L1))
-      printf("L1\n");
-    if (left & byte_button_value(L2))
-      printf("L2\n");
-    if (mid & byte_button_value(L3))
-      printf("L3\n");
-    if (mid & byte_button_value(R3))
-      printf("R3\n");
-    if (mid & byte_button_value(share))
-      printf("share\n");
-    if (mid & byte_button_value(home)) {
-      printf("home\n");
-    }
-    if (mid & byte_button_value(plus))
-      printf("plus\n");
-    if (mid & byte_button_value(minus))
-      printf("minus\n");
-    if (right & byte_button_value(A))
-      printf("A\n");
-    if (right & byte_button_value(B))
-      printf("B\n");
-    if (right & byte_button_value(X))
-      printf("X\n");
-    if (right & byte_button_value(Y))
-      printf("Y\n");
-    if (right & byte_button_value(R1))
-      printf("R1\n");
-    if (right & byte_button_value(R2))
-      printf("R2\n");
-  }
+  //   if (left & byte_button_value(d_left))
+  //     printf("d_left\n");
+  //   if (left & byte_button_value(d_right))
+  //     printf("d_right\n");
+  //   if (left & byte_button_value(d_up))
+  //     printf("d_up\n");
+  //   if (left & byte_button_value(d_down))
+  //     printf("d_down\n");
+  //   if (left & byte_button_value(L1))
+  //     printf("L1\n");
+  //   if (left & byte_button_value(L2))
+  //     printf("L2\n");
+  //   if (mid & byte_button_value(L3))
+  //     printf("L3\n");
+  //   if (mid & byte_button_value(R3))
+  //     printf("R3\n");
+  //   if (mid & byte_button_value(share))
+  //     printf("share\n");
+  //   if (mid & byte_button_value(home)) {
+  //     printf("home\n");
+  //   }
+  //   if (mid & byte_button_value(plus))
+  //     printf("plus\n");
+  //   if (mid & byte_button_value(minus))
+  //     printf("minus\n");
+  //   if (right & byte_button_value(A))
+  //     printf("A\n");
+  //   if (right & byte_button_value(B))
+  //     printf("B\n");
+  //   if (right & byte_button_value(X))
+  //     printf("X\n");
+  //   if (right & byte_button_value(Y))
+  //     printf("Y\n");
+  //   if (right & byte_button_value(R1))
+  //     printf("R1\n");
+  //   if (right & byte_button_value(R2))
+  //     printf("R2\n");
+  // }
 
   void clear_console() { system("clear"); }
 
@@ -1211,23 +1211,6 @@ void uinput_destroy() {
   return;
 }
 
-//-----------------------------------------------
-//                   LIBEVDEV
-//-----------------------------------------------
-
-// int libevdev_test() {
-//   struct libevdev *dev = NULL;
-//   int fd;
-//   int rc = 1;
-
-//   fd = open("/dev/input/js0", O_RDONLY | O_NONBLOCK);
-//   rc = libevdev_new_from_fd(fd, &dev);
-//   if (rc < 0) {
-//     fprintf(stderr, "Failed to init libevdev (%s)\n", strerror(-rc));
-//     exit(1);
-//   }
-//   printf("Input device name: \"%s\"\n", libevdev_get_name(dev));
-// }
 
 static const void red() {
   printf("%s", KRED);
@@ -1337,60 +1320,3 @@ int uinput_version, uinput_rc, uinput_fd;
 
 #endif
 
-// Input device ID: bus 0x3 vendor 0x45e product 0x28e version 0x110
-// Input device name: "Microsoft X-Box 360 pad"
-// Supported events:
-//   Event type 0 (EV_SYN)
-//   Event type 1 (EV_KEY)
-//     Event code 304 (BTN_SOUTH)
-//     Event code 305 (BTN_EAST)
-//     Event code 307 (BTN_NORTH)
-//     Event code 308 (BTN_WEST)
-//     Event code 310 (BTN_TL)
-//     Event code 311 (BTN_TR)
-//     Event code 314 (BTN_SELECT)
-//     Event code 315 (BTN_START)
-//     Event code 316 (BTN_MODE)
-//     Event code 317 (BTN_THUMBL)
-//     Event code 318 (BTN_THUMBR)
-//   Event type 3 (EV_ABS)
-//     Event code 0 (ABS_X)
-//       Value      0
-//       Min   -32768
-//       Max    32767
-//       Fuzz      16
-//       Flat     128
-//     Event code 1 (ABS_Y)
-//       Value      0
-//       Min   -32768
-//       Max    32767
-//       Fuzz      16
-//       Flat     128
-//     Event code 2 (ABS_Z)
-//       Value      0
-//       Min        0
-//       Max      255
-//     Event code 3 (ABS_RX)
-//       Value      0
-//       Min   -32768
-//       Max    32767
-//       Fuzz      16
-//       Flat     128
-//     Event code 4 (ABS_RY)
-//       Value      0
-//       Min   -32768
-//       Max    32767
-//       Fuzz      16
-//       Flat     128
-//     Event code 5 (ABS_RZ)
-//       Value      0
-//       Min        0
-//       Max      255
-//     Event code 16 (ABS_HAT0X)
-//       Value      0
-//       Min       -1
-//       Max        1
-//     Event code 17 (ABS_HAT0Y)
-//       Value      0
-//       Min       -1
-//       Max        1

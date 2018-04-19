@@ -26,8 +26,15 @@ bash install
 ```
 cd ~/procon_driver/build
 ```
-7. Follow instructions on screen and enjoy your games.
-(Repeat 6. and 7. every time you want to open the driver)
+
+7. Start the driver!
+```
+./procon_driver
+```
+
+8. Follow instructions on screen and enjoy your games.
+
+(Repeat 6. through 8. every time you want to open the driver)
 
 
 # Thanks
