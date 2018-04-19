@@ -16,7 +16,7 @@ git clone https://github.com/FrotBot/SwitchProConLinuxUSB.git .
 ```
 4. install and build the driver
 ```
-bash install
+bash install.sh
 ```
 (You'll be prompted to type your password and press y a few times, it installs some libraries.)
 

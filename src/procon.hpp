@@ -1,11 +1,10 @@
 #ifndef PROCON_DRIVER_H
 #define PROCON_DRIVER_H
 
-//#define ROCKET_LEAGUE // You'll probably not want this!
+//#define ROCKET_LEAGUE // Inverts dpad up/down and right stick L/R
 
 #ifdef ROCKET_LEAGUE
-#define DRIBBLE_MODE // And especially not this! Unless you are me, whom you
-                     // are not! (Note: if you are me, I apologize to thyself!)
+#define DRIBBLE_MODE // 
 #endif
 
 #include "hidapi.h"
