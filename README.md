@@ -2,6 +2,19 @@
 This repository aims to provide a uinput driver for the Nintendo Switch Pro Controller when connected via USB.
 Currently only one controller is supported!
 
+# Dependencies
+
+This repo needs 
+-libudev
+-autotools
+
+On Ubuntu you can install them with
+
+```
+sudo apt-get install libudev-dev libusb-1.0-0-dev libfox-1.6-dev
+sudo apt-get install autotools-dev autoconf automake libtool
+```
+
 # Installation
 
 1. Open a terminal (ctrl + alt + T)
