@@ -5,14 +5,21 @@ Currently only one controller is supported!
 # Dependencies
 
 This repo needs 
+
 -libudev
+
 -autotools
+
+-Cmake
+
+
 
 On Ubuntu you can install them with
 
 ```
 sudo apt-get install libudev-dev libusb-1.0-0-dev libfox-1.6-dev
 sudo apt-get install autotools-dev autoconf automake libtool
+sudo apt-get install cmake
 ```
 
 # Installation
