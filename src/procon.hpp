@@ -20,7 +20,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define PROCON_DRIVER_VERSION "1.0 alpha"
+#define PROCON_DRIVER_VERSION "1.0 alpha2"
 
 #define KNRM "\x1B[0m"
 #define KRED "\x1B[31m"
@@ -36,11 +36,9 @@
 
 #define MAX_N_CONTROLLERS 4
 
-class ProController
-{
+class ProController {
 
-  enum BUTTONS
-  {
+  enum BUTTONS {
     d_left,
     d_right,
     d_up,
@@ -69,10 +67,8 @@ class ProController
   using exchange_array = std::array<uint8_t, exchange_length>;
 
 public:
-  static const uint8_t bit_position(ProController::BUTTONS button)
-  {
-    switch (button)
-    {
+  static const uint8_t bit_position(ProController::BUTTONS button) {
+    switch (button) {
     case d_left:
       return 0x04;
       break;
@@ -139,10 +135,8 @@ public:
     }
   }
 
-  static const uint8_t byte_button_value(ProController::BUTTONS button)
-  {
-    switch (button)
-    {
+  static const uint8_t byte_button_value(ProController::BUTTONS button) {
+    switch (button) {
     case d_left:
       return 0x08;
       break;
@@ -209,10 +203,8 @@ public:
     }
   }
 
-  static const uint8_t data_address(ProController::BUTTONS button)
-  {
-    switch (button)
-    {
+  static const uint8_t data_address(ProController::BUTTONS button) {
+    switch (button) {
     case d_left:
       return 0x0f;
       break;
@@ -300,16 +292,14 @@ public:
 
   template <size_t length>
   exchange_array send_command(uint8_t command,
-                              std::array<uint8_t, length> const &data)
-  {
+                              std::array<uint8_t, length> const &data) {
     std::array<uint8_t, length + 0x9> buffer;
     buffer.fill(0);
     buffer[0x0] = 0x80;
     buffer[0x1] = 0x92;
     buffer[0x3] = 0x31;
     buffer[0x8] = command;
-    if (length > 0)
-    {
+    if (length > 0) {
       memcpy(buffer.data() + 0x9, data.data(), length);
     }
     return exchange(buffer);
@@ -317,19 +307,16 @@ public:
 
   template <size_t length>
   exchange_array exchange(std::array<uint8_t, length> const &data,
-                          bool timed = false, int *status = nullptr)
-  {
+                          bool timed = false, int *status = nullptr) {
 
-    if (!controller_ptr)
-    {
+    if (!controller_ptr) {
       red();
       printf("ERROR: controller_ptr is nullptr!\n");
       normal();
       return {};
     }
 
-    if (hid_write(controller_ptr, data.data(), length) < 0)
-    {
+    if (hid_write(controller_ptr, data.data(), length) < 0) {
       red();
       printf(
           "ERROR: read() returned -1!\nDid you disconnect the controller?\n");
@@ -342,22 +329,18 @@ public:
     ret.fill(0);
     if (!timed)
       hid_read(controller_ptr, ret.data(), exchange_length);
-    else
-    {
+    else {
 
       if (hid_read_timeout(controller_ptr, ret.data(), exchange_length, 100) ==
-          0)
-      {
+          0) {
         // failed to read!
-        if (status)
-        {
+        if (status) {
           *status = -1;
           return {};
         }
       }
     }
-    if (status)
-    {
+    if (status) {
       *status = 0;
     }
     return ret;
@@ -365,8 +348,7 @@ public:
 
   template <size_t length>
   exchange_array send_subcommand(uint8_t command, uint8_t subcommand,
-                                 std::array<uint8_t, length> const &data)
-  {
+                                 std::array<uint8_t, length> const &data) {
     std::array<uint8_t, length + 10> buffer{
         static_cast<uint8_t>(rumble_counter++ & 0xF),
         0x00,
@@ -378,8 +360,7 @@ public:
         0x40,
         0x40,
         subcommand};
-    if (length > 0)
-    {
+    if (length > 0) {
       memcpy(buffer.data() + 10, data.data(), length);
     }
     return send_command(command, buffer);
@@ -459,22 +440,19 @@ public:
 
   void clear_console() { system("clear"); }
 
-  int poll_input()
-  {
+  int poll_input() {
     // print_cycle_counter++;
     // if(print_cycle_counter++ > n_print_cycle) {
     //     timer();
     // }
-    if (!controller_ptr)
-    {
+    if (!controller_ptr) {
       printf("%sERROR: Controller pointer is nullptr%s\n", KRED, KNRM);
       return -1;
     }
 
     auto dat = send_command(get_input, empty);
 
-    if (detect_useless_data(dat[0]))
-    {
+    if (detect_useless_data(dat[0])) {
       // printf("detected useless data!\n");
       return 0;
     }
@@ -482,8 +460,7 @@ public:
     send_subcommand(0x1, led_command, led_calibrated); // XXX way too often
 
     if (dat[0x0e] & byte_button_value(home) &&
-        dat[0x0e] & byte_button_value(share))
-    {
+        dat[0x0e] & byte_button_value(share)) {
       decalibrate();
     }
 
@@ -495,27 +472,21 @@ public:
     // print_buttons(dat[0x0f], dat[0x0e], dat[0x0d]);
     // print_sticks(dat[0x10], dat[0x11], dat[0x12], dat[0x13], dat[0x14],
     // dat[0x15]);
-    // print_exchange_array(dat);
+    //print_exchange_array(dat);
     return 0;
   }
 
 #ifdef DRIBBLE_MODE
-  void toggle_dribble_mode()
-  {
-    dribble_mode = !dribble_mode;
-  }
+  void toggle_dribble_mode() { dribble_mode = !dribble_mode; }
 #endif
 
-  void calibrate()
-  {
-    if (read_calibration_from_file)
-    {
+  void calibrate() {
+    if (read_calibration_from_file) {
       std::ifstream myReadFile;
       uint8_t output[8];
       myReadFile.open("procon_calibration_data",
                       std::ios::in | std::ios::binary);
-      if (myReadFile)
-      {
+      if (myReadFile) {
 
         // while (!myReadFile.eof())
 
@@ -544,16 +515,14 @@ public:
       myReadFile.close();
     }
 
-    if (!controller_ptr)
-    {
+    if (!controller_ptr) {
       printf("%sERROR: Controller pointer is nullptr%s\n", KRED, KNRM);
       return;
     }
 
     auto dat = send_command(get_input, empty);
 
-    if (detect_useless_data(dat[0]))
-    {
+    if (detect_useless_data(dat[0])) {
       // printf("detected useless data!\n");
       return;
     }
@@ -564,19 +533,14 @@ public:
     // print_exchange_array(dat);
 
     send_subcommand(0x1, led_command, led_calibration); // XXX way too often
-    if (!share_button_free)
-    {
-      if (!(dat[0x0e] & byte_button_value(share)))
-      {
+    if (!share_button_free) {
+      if (!(dat[0x0e] & byte_button_value(share))) {
         share_button_free = true;
       }
-    }
-    else
-    {
+    } else {
       bool cal = do_calibrate(dat[0x10], dat[0x11], dat[0x12], dat[0x13],
                               dat[0x14], dat[0x15], dat[0x0e]);
-      if (cal)
-      {
+      if (cal) {
         calibrated = true;
         send_subcommand(0x1, led_command, led_calibrated);
         // printf("finished calibration\n");
@@ -615,28 +579,23 @@ public:
   bool do_calibrate(const uint8_t &stick0, const uint8_t &stick1,
                     const uint8_t &stick2, const uint8_t &stick3,
                     const uint8_t &stick4, const uint8_t &stick5,
-                    const uint8_t &mid_buttons)
-  {
+                    const uint8_t &mid_buttons) {
     uint8_t left_x = ((stick1 & 0x0F) << 4) | ((stick0 & 0xF0) >> 4);
     uint8_t left_y = stick2;
     uint8_t right_x = ((stick4 & 0x0F) << 4) | ((stick3 & 0xF0) >> 4);
     uint8_t right_y = stick5;
 
     // invert
-    if (invert_LX)
-    {
+    if (invert_LX) {
       left_x = 255 - left_x;
     }
-    if (invert_LY)
-    {
+    if (invert_LY) {
       left_y = 255 - left_y;
     }
-    if (invert_RX)
-    {
+    if (invert_RX) {
       right_x = 255 - right_x;
     }
-    if (invert_RY)
-    {
+    if (invert_RY) {
       right_y = 255 - right_y;
     }
 
@@ -662,8 +621,7 @@ public:
     return (mid_buttons & byte_button_value(share));
   }
 
-  void decalibrate()
-  {
+  void decalibrate() {
     left_x_min = center;
     left_x_max = center;
     left_y_min = center;
@@ -687,8 +645,7 @@ public:
   }
 
   const void map_sticks(uint8_t &left_x, uint8_t &left_y, uint8_t &right_x,
-                        uint8_t &right_y)
-  {
+                        uint8_t &right_y) {
     left_x = (uint8_t)(clamp((float)(left_x - left_x_min) /
                              (float)(left_x_max - left_x_min) * 255.f));
     left_y = (uint8_t)(clamp((float)(left_y - left_y_min) /
@@ -699,45 +656,37 @@ public:
                               (float)(right_y_max - right_y_min) * 255.f));
   }
 
-  static const float clamp(float inp)
-  {
+  static const float clamp(float inp) {
     if (inp < 0.5f)
       return 0.5f;
-    if (inp > 254.5f)
-    {
+    if (inp > 254.5f) {
       return 254.5f;
     }
     return inp;
   }
-  static const int clamp_int(int inp)
-  {
+  static const int clamp_int(int inp) {
     if (inp < 0)
       return 0;
-    if (inp > 255)
-    {
+    if (inp > 255) {
       return 255;
     }
     return inp;
   }
 
-  int try_read_bad_data()
-  {
+  int try_read_bad_data() {
 
-    if (!controller_ptr)
-    {
+    if (!controller_ptr) {
       printf("%sERROR: Controller pointer is nullptr%s\n", KRED, KNRM);
       return -1;
     }
 
     auto dat = send_command(get_input, empty);
 
-    if (detect_useless_data(dat[0]))
-    {
+    if (detect_useless_data(dat[0])) {
       return 0;
     }
 
-    if (detect_bad_data(dat[0], dat[1]))
-    {
+    if (detect_bad_data(dat[0], dat[1])) {
       // print_exchange_array(dat);
       return -1;
     }
@@ -746,14 +695,14 @@ public:
   }
 
   /* Hackishly detects when the controller is trapped in a bad loop.
-  Nothing to do here, need to restart driver :(*/
-  bool detect_bad_data(const uint8_t &dat1, const uint8_t &dat2)
-  {
+  Nothing to do here, need to reopen device :(*/
+  bool detect_bad_data(const uint8_t &dat1, const uint8_t &dat2) {
     return (dat2 == 0x01 && dat1 == 0x81) ? true : bad_data_detected;
   }
 
-  bool detect_useless_data(const uint8_t &dat)
-  {
+  /* If this returns true, there is no controller information in this package,
+   * we can skip it*/
+  bool detect_useless_data(const uint8_t &dat) {
     if (dat == 0x30)
       n_bad_data_thirty++;
     if (dat == 0x00)
@@ -761,30 +710,21 @@ public:
     return (dat == 0x30 || dat == 0x00);
   }
 
-  void print_exchange_array(exchange_array arr)
-  {
+  void print_exchange_array(exchange_array arr) {
     bool redcol = false;
     if (arr[0] != 0x30)
       yellow();
-    else
-    {
+    else {
       red();
       redcol = true;
     }
-    for (size_t i = 0; i < 20; ++i)
-    {
-      if (arr[i] == 0x00)
-      {
+    for (size_t i = 0; i < 20; ++i) {
+      if (arr[i] == 0x00) {
         blue();
-      }
-      else
-      {
-        if (redcol)
-        {
+      } else {
+        if (redcol) {
           red();
-        }
-        else
-        {
+        } else {
           yellow();
         }
       }
@@ -795,11 +735,9 @@ public:
     fflush(stdout);
   }
 
-  int read(hid_device *device, uint8_t *data, size_t size)
-  {
+  int read(hid_device *device, uint8_t *data, size_t size) {
     int ret = hid_read(device, data, size);
-    if (ret < 0)
-    {
+    if (ret < 0) {
       printf("%sERROR: Couldn't read from device nr. %u%s\n", KRED,
              n_controller, KNRM);
     }
@@ -807,14 +745,12 @@ public:
   }
 
   int open_device(unsigned short vendor_id, unsigned short product_id,
-                  const wchar_t *serial_number, unsigned short n_controll)
-  {
+                  const wchar_t *serial_number, unsigned short n_controll) {
     controller_ptr = hid_open(vendor_id, product_id, serial_number);
     // controller_ptr = hid_open_path("/dev/input/hidraw0");
     is_opened = true;
 
-    if (!controller_ptr)
-    {
+    if (!controller_ptr) {
       return -1;
     }
     // hid_device_info *info = hid_open(vendor_id, product_id, serial_number);
@@ -839,8 +775,7 @@ public:
     // the next part will sometimes fail, then need to reopen device via hidapi
     int read_failed;
     exchange(hid_only_mode, true, &read_failed);
-    if (read_failed < 0)
-    {
+    if (read_failed < 0) {
       return -2;
     }
 
@@ -851,31 +786,25 @@ public:
     return 0;
   }
 
-  void set_non_blocking()
-  {
-    if (hid_set_nonblocking(controller_ptr, 1) < 0)
-    {
+  void set_non_blocking() {
+    if (hid_set_nonblocking(controller_ptr, 1) < 0) {
       printf("%sERROR: Couldn't set controller %u to non-blocking%s\n", KRED,
              n_controller, KNRM);
     }
   }
 
-  void set_blocking()
-  {
-    if (hid_set_nonblocking(controller_ptr, 0) < 0)
-    {
+  void set_blocking() {
+    if (hid_set_nonblocking(controller_ptr, 0) < 0) {
       printf("%sERROR: Couldn't set controller %u to blocking%s\n", KRED,
              n_controller, KNRM);
     }
   }
 
-  void close_device()
-  {
+  void close_device() {
     if (!is_opened)
       return;
     is_opened = false;
-    if (controller_ptr)
-    {
+    if (controller_ptr) {
       hid_close(controller_ptr);
       blue();
       // printf("Closed controller nr. %u\n", n_controller);
@@ -898,32 +827,25 @@ public:
   //         UINPUT
   //-------------------------
 
-  void uinput_manage_dpad(const char &left)
-  {
+  void uinput_manage_dpad(const char &left) {
     bool b_d_left;
     bool b_d_right;
     bool b_d_up;
     bool b_d_down;
 
     // invert
-    if (!invert_DX)
-    {
+    if (!invert_DX) {
       b_d_left = left & byte_button_value(d_left);
       b_d_right = left & byte_button_value(d_right);
-    }
-    else
-    {
+    } else {
       b_d_left = left & byte_button_value(d_right);
       b_d_right = left & byte_button_value(d_left);
     }
 
-    if (!invert_DY)
-    {
+    if (!invert_DY) {
       b_d_up = left & byte_button_value(d_up);
       b_d_down = left & byte_button_value(d_down);
-    }
-    else
-    {
+    } else {
       b_d_up = left & byte_button_value(d_down);
       b_d_down = left & byte_button_value(d_up);
     }
@@ -931,28 +853,18 @@ public:
     memset(&uinput_event, 0, sizeof(uinput_event));
     gettimeofday(&uinput_event.time, NULL);
 
-    if (b_d_left)
-    {
+    if (b_d_left) {
       uinput_write_single_joystick(-1, ABS_HAT0X);
-    }
-    else if (b_d_right)
-    {
+    } else if (b_d_right) {
       uinput_write_single_joystick(1, ABS_HAT0X);
-    }
-    else if (!b_d_left && !b_d_right)
-    {
+    } else if (!b_d_left && !b_d_right) {
       uinput_write_single_joystick(0, ABS_HAT0X);
     }
-    if (b_d_down)
-    {
+    if (b_d_down) {
       uinput_write_single_joystick(-1, ABS_HAT0Y);
-    }
-    else if (b_d_up)
-    {
+    } else if (b_d_up) {
       uinput_write_single_joystick(1, ABS_HAT0Y);
-    }
-    else if (!b_d_down && !b_d_up)
-    {
+    } else if (!b_d_down && !b_d_up) {
       uinput_write_single_joystick(0, ABS_HAT0Y);
     }
 
@@ -964,8 +876,7 @@ public:
   }
 
   void uinput_manage_buttons(const char &left, const char &mid,
-                             const char &right)
-  {
+                             const char &right) {
 
     // bool b_d_left = left & byte_button_value(d_left);
     // bool b_d_right = left & byte_button_value(d_right);
@@ -983,15 +894,12 @@ public:
     bool b_minus = mid & byte_button_value(minus);
 
     bool b_a, b_b, b_x, b_y;
-    if (!swap_buttons)
-    {
+    if (!swap_buttons) {
       b_a = right & byte_button_value(A);
       b_b = right & byte_button_value(B);
       b_x = right & byte_button_value(X);
       b_y = right & byte_button_value(Y);
-    }
-    else
-    {
+    } else {
       b_a = right & byte_button_value(B);
       b_b = right & byte_button_value(A);
       b_x = right & byte_button_value(Y);
@@ -1003,8 +911,7 @@ public:
       uinput_button_down(BTN_EAST);
     if (b_b && !last_b)
       uinput_button_down(BTN_SOUTH);
-    if (b_x && !last_x)
-    {
+    if (b_x && !last_x) {
       uinput_button_down(BTN_WEST);
 #ifdef DRIBBLE_MODE // toggle off dribble mode
       if (dribble_mode)
@@ -1125,16 +1032,14 @@ public:
     write(uinput_fd, &uinput_event, sizeof(uinput_event));
   }
 
-  bool calibration_file_exists()
-  {
+  bool calibration_file_exists() {
     std::ifstream conf("procon_calibration_data");
     return conf.good();
   }
 
   void uinput_manage_joysticks(const char &dat0, const char &dat1,
                                const char &dat2, const char &dat3,
-                               const char &dat4, const char &dat5)
-  {
+                               const char &dat4, const char &dat5) {
     // extract data
     uint8_t left_x = ((dat1 & 0x0F) << 4) | ((dat0 & 0xF0) >> 4);
     uint8_t left_y = dat2;
@@ -1142,20 +1047,16 @@ public:
     uint8_t right_y = dat5;
 
     // invert
-    if (invert_LX)
-    {
+    if (invert_LX) {
       left_x = 255 - left_x;
     }
-    if (invert_LY)
-    {
+    if (invert_LY) {
       left_y = 255 - left_y;
     }
-    if (invert_RX)
-    {
+    if (invert_RX) {
       right_x = 255 - right_x;
     }
-    if (invert_RY)
-    {
+    if (invert_RY) {
       right_y = 255 - right_y;
     }
 
@@ -1177,8 +1078,7 @@ public:
 #ifndef DRIBBLE_MODE
     uinput_write_single_joystick(right_y, ABS_RY);
 #else
-    if (dribble_mode)
-    {
+    if (dribble_mode) {
       right_y = clamp_int(right_y + dribble_mode_value - 127);
     }
 #endif
@@ -1196,24 +1096,21 @@ public:
     // printf("right_y: %i\n", (int)right_y);
   }
 
-  void uinput_write_single_joystick(const int &val, const int &cod)
-  {
+  void uinput_write_single_joystick(const int &val, const int &cod) {
 
     uinput_event.type = EV_ABS;
     uinput_event.code = cod; // BTN_EAST;
     uinput_event.value = (int)val;
 
     int ret = write(uinput_fd, &uinput_event, sizeof(uinput_event));
-    if (ret < 0)
-    {
+    if (ret < 0) {
       red();
       printf("ERROR: write in button_down() returned %i\n", ret);
       normal();
     }
   }
 
-  void uinput_button_down(const int &cod)
-  {
+  void uinput_button_down(const int &cod) {
 
     // press button
     memset(&uinput_event, 0, sizeof(uinput_event));
@@ -1222,8 +1119,7 @@ public:
     uinput_event.code = cod; // BTN_EAST;
     uinput_event.value = 1;
     int ret = write(uinput_fd, &uinput_event, sizeof(uinput_event));
-    if (ret < 0)
-    {
+    if (ret < 0) {
       red();
       printf("ERROR: write in button_down() returned %i\n", ret);
       normal();
@@ -1239,8 +1135,7 @@ public:
     // printf("PRessed button %u\n", cod);
   }
 
-  void uinput_button_release(const int &cod)
-  {
+  void uinput_button_release(const int &cod) {
     // release button
     memset(&uinput_event, 0, sizeof(uinput_event));
     gettimeofday(&uinput_event.time, NULL);
@@ -1256,8 +1151,7 @@ public:
     write(uinput_fd, &uinput_event, sizeof(uinput_event));
   }
 
-  int uinput_create()
-  {
+  int uinput_create() {
     uinput_fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
     uinput_rc = ioctl(uinput_fd, UI_GET_VERSION, &uinput_version);
 
@@ -1336,8 +1230,7 @@ public:
 
     write(uinput_fd, &uinput_device, sizeof(uinput_device));
 
-    if (ioctl(uinput_fd, UI_DEV_CREATE))
-    {
+    if (ioctl(uinput_fd, UI_DEV_CREATE)) {
       return -1;
     }
 
@@ -1348,8 +1241,7 @@ public:
     return 0;
   }
 
-  void uinput_destroy()
-  {
+  void uinput_destroy() {
     ioctl(uinput_fd, UI_DEV_DESTROY);
 
     close(uinput_fd);
@@ -1361,38 +1253,31 @@ public:
     return;
   }
 
-  static const void red()
-  {
+  static const void red() {
     printf("%s", KRED);
     fflush(stdout);
   }
-  static const void normal()
-  {
+  static const void normal() {
     printf("%s", KNRM);
     fflush(stdout);
   }
-  static const void blue()
-  {
+  static const void blue() {
     printf("%s", KBLU);
     fflush(stdout);
   }
-  static const void yellow()
-  {
+  static const void yellow() {
     printf("%s", KYEL);
     fflush(stdout);
   }
-  static const void green()
-  {
+  static const void green() {
     printf("%s", KGRN);
     fflush(stdout);
   }
-  static const void magenta()
-  {
+  static const void magenta() {
     printf("%s", KMAG);
     fflush(stdout);
   }
-  static const void cyan()
-  {
+  static const void cyan() {
     printf("%s", KCYN);
     fflush(stdout);
   }
@@ -1434,7 +1319,7 @@ public:
   bool is_opened = false;
   bool calibrated = false;
   bool read_calibration_from_file =
-      true;                       // will be set to false in decalibrate or with flags
+      true; // will be set to false in decalibrate or with flags
   bool share_button_free = false; // used for recalibration (press share & home)
   uint8_t left_x_min = 0x7e;
   uint8_t left_y_min = 0x7e;

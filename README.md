@@ -8,19 +8,34 @@ This repo needs
 
 -libudev
 
--autotools
+-autotools, autoconf and libtool
 
 -Cmake
 
-
-
-On Ubuntu you can install them with
+On Ubuntu you can install these with
 
 ```
 sudo apt-get install libudev-dev libusb-1.0-0-dev libfox-1.6-dev
 sudo apt-get install autotools-dev autoconf automake libtool
 sudo apt-get install cmake
 ```
+Further we need
+
+- hidapi
+
+Compile and install it from source in its own folder by using:
+
+```
+mkdir hidapi
+cd hidapi
+git clone git://github.com/signal11/hidapi.git .
+./bootstrap
+./configure
+make
+sudo make install
+```
+
+You can delete the hidapi folder now.
 
 # Installation
 
