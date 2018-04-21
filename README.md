@@ -12,7 +12,7 @@ This repo needs
 
 - cmake
 
-On Ubuntu you can install these with
+On Ubuntu you can install these in a terminal with
 
 ```
 sudo apt-get install libudev-dev libusb-1.0-0-dev libfox-1.6-dev
@@ -45,7 +45,7 @@ rm -rf hidapi
 # Installation
 
 
-Create install folder and enter it, e.g.
+Create install folder for Pro Controller driver and enter it, e.g.
 ```
 mkdir ~/procon_driver
 cd ~/procon_driver
@@ -58,7 +58,6 @@ install and build the driver
 ```
 bash install.sh
 ```
-(You'll be prompted to type your password and press y a few times, it installs some libraries.)
 
 reboot your PC once to make the udev rules work
 
@@ -74,13 +73,12 @@ Start the driver!
 
 Follow instructions on screen and enjoy your games.
 
-(Repeat 6. through 8. every time you want to open the driver)
+(You'll need to reopen the executable from the last step everytime you use the driver.)
 
 
 # Thanks
 This project took heavy inspiration and some constants from this project:
 https://github.com/MTCKC/ProconXInput/tree/v0.1.0-alpha2
 
-This project uses the hidapi library!
 
 
