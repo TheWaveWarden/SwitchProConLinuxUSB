@@ -1,15 +1,12 @@
 #ifndef PROCON_DRIVER_H
 #define PROCON_DRIVER_H
 
-
-
-
 // #define DRIBBLE_MODE // game-specific hack. does not belong here!
-
 
 #include "hidapi.h"
 #include <array>
 #include <chrono>
+#include <cstdint>
 #include <cstring>
 #include <ctime>
 #include <fcntl.h>
@@ -22,8 +19,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <cstdint>
-
 
 #define PROCON_DRIVER_VERSION "1.0 alpha"
 
@@ -293,7 +288,8 @@ public:
 
   //   last_time = now;
 
-  //   printf("Time for last %u polls: %f seconds\n", n_print_cycle, elapsed_secs);
+  //   printf("Time for last %u polls: %f seconds\n", n_print_cycle,
+  //   elapsed_secs);
   //   printf("Bad 0x00: %u\nBad 0x30: %u\n\n", n_bad_data_thirty,
   //          n_bad_data_zero);
 
@@ -335,7 +331,8 @@ public:
     if (hid_write(controller_ptr, data.data(), length) < 0)
     {
       red();
-      printf("ERROR: read() returned -1!\nDid you disconnect the controller?\n");
+      printf(
+          "ERROR: read() returned -1!\nDid you disconnect the controller?\n");
       normal();
       throw - 1;
       return {};
@@ -388,7 +385,8 @@ public:
     return send_command(command, buffer);
   }
 
-  // void print_sticks(const uint8_t &data0, const uint8_t &data1, const uint8_t &data2,
+  // void print_sticks(const uint8_t &data0, const uint8_t &data1, const uint8_t
+  // &data2,
   //                   const uint8_t &data3, const uint8_t &data4,
   //                   const uint8_t &data5) {
   //   uint8_t left_x = ((data1 & 0x0F) << 4) | ((data0 & 0xF0) >> 4);
@@ -406,14 +404,16 @@ public:
   //   printf("right_y %d\n\n", right_y);
   //   normal();
 
-  //   // if(left_x == 0x00 || left_y == 0x00 || right_x == 0x00 || right_y == 0x00
+  //   // if(left_x == 0x00 || left_y == 0x00 || right_x == 0x00 || right_y ==
+  //   0x00
   //   // ) {
   //   //     return -1;
   //   // }
   //   // return 0;
   // }
 
-  // void print_buttons(const uint8_t &left, const uint8_t &mid, const uint8_t &right) {
+  // void print_buttons(const uint8_t &left, const uint8_t &mid, const uint8_t
+  // &right) {
   //   // uint8_t left = buttons[0];
   //   // uint8_t mid = buttons[1];
   //   // uint8_t right = buttons[2];
@@ -622,7 +622,7 @@ public:
     uint8_t right_x = ((stick4 & 0x0F) << 4) | ((stick3 & 0xF0) >> 4);
     uint8_t right_y = stick5;
 
-    //invert
+    // invert
     if (invert_LX)
     {
       left_x = 255 - left_x;
@@ -905,7 +905,7 @@ public:
     bool b_d_up;
     bool b_d_down;
 
-    //invert
+    // invert
     if (!invert_DX)
     {
       b_d_left = left & byte_button_value(d_left);
@@ -922,7 +922,8 @@ public:
       b_d_up = left & byte_button_value(d_up);
       b_d_down = left & byte_button_value(d_down);
     }
-    else {
+    else
+    {
       b_d_up = left & byte_button_value(d_down);
       b_d_down = left & byte_button_value(d_up);
     }
@@ -980,10 +981,22 @@ public:
     bool b_home = mid & byte_button_value(home);
     bool b_plus = mid & byte_button_value(plus);
     bool b_minus = mid & byte_button_value(minus);
-    bool b_a = right & byte_button_value(A);
-    bool b_b = right & byte_button_value(B);
-    bool b_x = right & byte_button_value(X);
-    bool b_y = right & byte_button_value(Y);
+
+    bool b_a, b_b, b_x, b_y;
+    if (!swap_buttons)
+    {
+      b_a = right & byte_button_value(A);
+      b_b = right & byte_button_value(B);
+      b_x = right & byte_button_value(X);
+      b_y = right & byte_button_value(Y);
+    }
+    else
+    {
+      b_a = right & byte_button_value(B);
+      b_b = right & byte_button_value(A);
+      b_x = right & byte_button_value(Y);
+      b_y = right & byte_button_value(X);
+    }
 
     // press
     if (b_a && !last_a)
@@ -1128,7 +1141,7 @@ public:
     uint8_t right_x = ((dat4 & 0x0F) << 4) | ((dat3 & 0xF0) >> 4);
     uint8_t right_y = dat5;
 
-    //invert
+    // invert
     if (invert_LX)
     {
       left_x = 255 - left_x;
@@ -1460,6 +1473,8 @@ public:
   bool invert_RY = false;
   bool invert_DX = false;
   bool invert_DY = false;
+
+  bool swap_buttons = false;
 
   // uinput
   struct uinput_user_dev uinput_device;

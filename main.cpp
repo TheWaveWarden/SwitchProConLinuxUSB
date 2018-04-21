@@ -14,6 +14,7 @@ int main(int argc, char *argv[])
   bool invert_ry = false;
   bool invert_dx = false;
   bool invert_dy = false;
+  bool swap_buttons = false;
 
 #ifdef DRIBBLE_MODE
   int dribble_cam_value;
@@ -93,6 +94,11 @@ int main(int argc, char *argv[])
 
       } while (valid_axis_name && i+1 < argc);
     }
+    if (std::string(argv[i]) == "--swap_buttons" || std::string(argv[i]) == "-s")
+    {
+      option_found = true;
+      swap_buttons = true;
+    }
 #ifdef DRIBBLE_MODE
     if (std::string(argv[i]) == "-d")
     {
@@ -115,6 +121,7 @@ int main(int argc, char *argv[])
     printf("Usage: procon_driver [OPTIONS]\noptions are:\n");
     printf(" -h --help                   get help on usage at start\n");
     printf(" -c --calibration            force calibration at start\n");
+    printf(" -s --swap_buttons           Swap A and B buttons and X and Y buttons\n");
     printf(" -i --invert-axis [AXIS]     invert axis, possible axis: lx, ly, rx, ry, dx, dy\n");
 #ifdef DRIBBLE_MODE
     printf(" -d [VALUE]                  pass parameter for dribble cam. Range 0 to 255\n");
@@ -177,6 +184,7 @@ int main(int argc, char *argv[])
   controller.invert_RY = invert_ry;
   controller.invert_DX = invert_dx;
   controller.invert_DY = invert_dy;
+  controller.swap_buttons = swap_buttons;
 #ifdef DRIBBLE_MODE
   if (found_dribble_cam_value)
   {
