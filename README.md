@@ -6,11 +6,11 @@ Currently only one controller is supported!
 
 This repo needs 
 
--libudev
+- libudev
 
--autotools, autoconf and libtool
+- autotools, autoconf and libtool
 
--Cmake
+- cmake
 
 On Ubuntu you can install these with
 
@@ -35,39 +35,44 @@ make
 sudo make install
 ```
 
-You can delete the hidapi folder now.
+You can delete the hidapi folder now:
+
+```
+cd ..
+rm -rf hidapi
+```
 
 # Installation
 
-1. Open a terminal (ctrl + alt + T)
-2. Create install folder and enter it, e.g.
+
+Create install folder and enter it, e.g.
 ```
 mkdir ~/procon_driver
 cd ~/procon_driver
 ```
-3. Clone the repository here
+Clone the repository here
 ```
 git clone https://github.com/FrotBot/SwitchProConLinuxUSB.git .
 ```
-4. install and build the driver
+install and build the driver
 ```
 bash install.sh
 ```
 (You'll be prompted to type your password and press y a few times, it installs some libraries.)
 
-5. reboot your PC once to make the udev rules work
+reboot your PC once to make the udev rules work
 
-6. Open terminal once more and navigate to the build directory in the install folder
+Open terminal once more and navigate to the build directory in the install folder
 ```
 cd ~/procon_driver/build
 ```
 
-7. Start the driver!
+Start the driver!
 ```
 ./procon_driver
 ```
 
-8. Follow instructions on screen and enjoy your games.
+Follow instructions on screen and enjoy your games.
 
 (Repeat 6. through 8. every time you want to open the driver)
 
