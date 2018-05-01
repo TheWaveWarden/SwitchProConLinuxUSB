@@ -75,6 +75,11 @@ Follow instructions on screen and enjoy your games.
 
 (You'll need to reopen the executable from the last step everytime you use the driver.)
 
+On newer kernel versions, uinput devices need root privileges, so if you get error messages try to run
+```
+sudo ./procon_driver
+```
+
 
 # Thanks
 This project took heavy inspiration and some constants from this project:

@@ -440,6 +440,28 @@ public:
 
   void clear_console() { system("clear"); }
 
+  exchange_array send_rumble(uint8_t large_motor, uint8_t small_motor) {
+    std::array<uint8_t, 9> buf{static_cast<uint8_t>(rumble_counter++ & 0xF),
+                               0x80,
+                               0x00,
+                               0x40,
+                               0x40,
+                               0x80,
+                               0x00,
+                               0x40,
+                               0x40};
+    if (large_motor != 0) {
+      buf[1] = buf[5] = 0x08;
+      buf[2] = buf[6] = large_motor;
+    } else if (small_motor != 0) {
+      buf[1] = buf[5] = 0x10;
+      buf[2] = buf[6] = small_motor;
+    }
+    exchange_array ret = send_command(0x10, buf);
+    print_exchange_array(ret);
+    return ret;
+  }
+
   int poll_input() {
     // print_cycle_counter++;
     // if(print_cycle_counter++ > n_print_cycle) {
@@ -472,7 +494,7 @@ public:
     // print_buttons(dat[0x0f], dat[0x0e], dat[0x0d]);
     // print_sticks(dat[0x10], dat[0x11], dat[0x12], dat[0x13], dat[0x14],
     // dat[0x15]);
-    //print_exchange_array(dat);
+    // print_exchange_array(dat);
     return 0;
   }
 
@@ -507,7 +529,8 @@ public:
         normal();
 
         calibrated = true;
-        send_subcommand(0x1, led_command, led_calibrated);
+        // send_rumble(0,255);
+        // send_subcommand(0x1, led_command, led_calibrated);
 
         return;
       }
@@ -541,6 +564,7 @@ public:
       bool cal = do_calibrate(dat[0x10], dat[0x11], dat[0x12], dat[0x13],
                               dat[0x14], dat[0x15], dat[0x0e]);
       if (cal) {
+        // send_rumble(0,255);
         calibrated = true;
         send_subcommand(0x1, led_command, led_calibrated);
         // printf("finished calibration\n");
@@ -617,8 +641,20 @@ public:
     // printf("left_y_max: %u\n", left_y_max);
     // printf("right_x_max: %u\n", right_x_max);
     // printf("right_y_max: %u\n\n", right_y_max);
+    // print_calibration_values();
 
     return (mid_buttons & byte_button_value(share));
+  }
+
+  void print_calibration_values() {
+    std::cout << "LX: " << (unsigned int)left_x_min << ","
+              << (unsigned int)left_x_max
+              << "   LY: " << (unsigned int)left_y_min << ","
+              << (unsigned int)left_y_max
+              << "   RX: " << (unsigned int)right_x_min << ","
+              << (unsigned int)right_x_max
+              << "   RY: " << (unsigned int)right_y_min << ","
+              << (unsigned int)right_y_max << "                \r";
   }
 
   void decalibrate() {
@@ -750,6 +786,8 @@ public:
     // controller_ptr = hid_open_path("/dev/input/hidraw0");
     is_opened = true;
 
+
+    printf("SERIAL NUMBER: %u\n", serial_number);
     if (!controller_ptr) {
       return -1;
     }
@@ -1157,43 +1195,25 @@ public:
 
     memset(&uinput_device, 0, sizeof(uinput_device));
 
-    // strncpy(uinput_device.name, "Nintendo Switch Pro Controller USB",
-    //        UINPUT_MAX_NAME_SIZE);
-    // strncpy(uinput_device.name, "Nintendo Switch Pro Controller USB",
-    //         UINPUT_MAX_NAME_SIZE);
+
     uinput_device.id.bustype = BUS_USB;
     uinput_device.id.vendor = 0x045e;  // Microsoft
     uinput_device.id.product = 0x028e; // XBOX 360
     uinput_device.id.version = 0x110;  // dunno but xboxdrv uses this
     strncpy(uinput_device.name, "Switch ProController disguised as XBox360",
             UINPUT_MAX_NAME_SIZE);
-    // strncpy(
-    //    uinput_device.name, "Microsoft X-Box 360 pad",
-    //    UINPUT_MAX_NAME_SIZE); // is this trigger fo "being" an xbox
-    //    device...?
+
 
     // buttons
     ioctl(uinput_fd, UI_SET_EVBIT, EV_KEY);
-
-    // sudo xboxdrv --evdev /dev/input/event2 --evdev-absmap
-    // ABS_X=x1,ABS_Y=y1,ABS_RX=x2,ABS_RY=y2,ABS_HAT0X=dpad_x,ABS_HAT0Y=dpad_y
-    // --axismap -Y1=Y1,-Y2=Y2 --evdev-keymap
-    // BTN_SOUTH=a,BTN_EAST=b,BTN_WEST=x,BTN_NORTH=y,BTN_TL=lb,BTN_TR=rb,BTN_TL2=lt,BTN_TR2=rt,BTN_THUMBL=tl,BTN_THUMBR=tr,BTN_SELECT=back,BTN_START=start
-    // --silent &
 
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_EAST);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_SOUTH);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_NORTH);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_WEST);
-    // ioctl(uinput_fd, UI_SET_KEYBIT, BTN_DPAD_DOWN);
-    // ioctl(uinput_fd, UI_SET_KEYBIT, BTN_DPAD_UP);
-    // ioctl(uinput_fd, UI_SET_KEYBIT, BTN_DPAD_LEFT);
-    // ioctl(uinput_fd, UI_SET_KEYBIT, BTN_DPAD_RIGHT);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_MODE);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_TL);
-    // ioctl(uinput_fd, UI_SET_KEYBIT, BTN_TL2);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_TR);
-    // ioctl(uinput_fd, UI_SET_KEYBIT, BTN_TR2);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_THUMBL);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_THUMBR);
     ioctl(uinput_fd, UI_SET_KEYBIT, BTN_START);
@@ -1231,7 +1251,7 @@ public:
     write(uinput_fd, &uinput_device, sizeof(uinput_device));
 
     if (ioctl(uinput_fd, UI_DEV_CREATE)) {
-      return -1;
+      //return -1;
     }
 
     green();
@@ -1240,6 +1260,8 @@ public:
 
     return 0;
   }
+
+
 
   void uinput_destroy() {
     ioctl(uinput_fd, UI_DEV_DESTROY);

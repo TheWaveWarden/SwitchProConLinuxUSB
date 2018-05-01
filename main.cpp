@@ -118,10 +118,10 @@ int main(int argc, char *argv[]) {
   }
 
   printf("\n--------------------------------------------------------------------"
-         "-----------------------\n");
+         "------\n");
   printf("| ");
-  printf("%c[%d;%dmNintendo Switch Pro-Controller USB driver for linux based "
-         "systems.%c[%dm ",
+  printf("%c[%d;%dmNintendo Switch Pro-Controller USB uinput driver"
+         ".%c[%dm ",
          27, 1, 32, 27, 0);
   printf("%c[%d;%dmVersion: ", 27, 1, 36);
   printf(PROCON_DRIVER_VERSION);
@@ -129,7 +129,7 @@ int main(int argc, char *argv[]) {
 
   printf("%s "
          "|\n-------------------------------------------------------------------"
-         "------------------------",
+         "-------",
          KNRM);
   printf("\n\n%s", KNRM);
 #ifdef DRIBBLE_MODE
@@ -153,6 +153,7 @@ int main(int argc, char *argv[]) {
 
   bool opened = false;
   bool bad_data = false;
+
 
   // pass arguments to controller
   if (force_calibration) {
