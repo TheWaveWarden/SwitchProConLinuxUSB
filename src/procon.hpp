@@ -787,7 +787,7 @@ public:
     is_opened = true;
 
 
-    printf("SERIAL NUMBER: %u\n", serial_number);
+    //printf("SERIAL NUMBER: %u\n", serial_number);
     if (!controller_ptr) {
       return -1;
     }
