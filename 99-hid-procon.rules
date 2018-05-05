@@ -1,0 +1,3 @@
+SUBSYSTEM=="usb", ATTRS{idVendor}=="057e", ATTRS{idProduct}=="2009", MODE="0666"
+# allow programs without root permissions to use uinput
+KERNEL==\"uinput\", MODE=\"0666\""

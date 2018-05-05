@@ -1,15 +1,12 @@
 #ifndef PROCON_DRIVER_H
 #define PROCON_DRIVER_H
 
-//#define ROCKET_LEAGUE // Inverts dpad up/down and right stick L/R
-
-#ifdef ROCKET_LEAGUE
-#define DRIBBLE_MODE // 
-#endif
+// #define DRIBBLE_MODE // game-specific hack. does not belong here!
 
 #include "hidapi.h"
 #include <array>
 #include <chrono>
+#include <cstdint>
 #include <cstring>
 #include <ctime>
 #include <fcntl.h>
@@ -22,13 +19,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <cstdint>
 
-//#include <libevdev/libevdev.h>
-// #include <libevdev/libevdev-uinput.h>
-//#include <optional>
-
-#define PROCON_DRIVER_VERSION "1.0 alpha"
+#define PROCON_DRIVER_VERSION "1.0 alpha2"
 
 #define KNRM "\x1B[0m"
 #define KRED "\x1B[31m"
@@ -68,20 +60,13 @@ class ProController {
     None
   };
 
-
   static constexpr uint8_t led_command{0x30};
   static constexpr uint8_t get_input{0x1f};
   static constexpr uint8_t center{0x7e};
   static constexpr size_t exchange_length{0x400};
-  using exchange_array =
-      std::array<uint8_t, exchange_length>; // might need std::optional<>
-  // static constexpr size_t buflen{ 80 };
-  // std::array<char, buflen> buffer;
+  using exchange_array = std::array<uint8_t, exchange_length>;
 
 public:
-  // ProController() {}
-  //~ProController() {}
-
   static const uint8_t bit_position(ProController::BUTTONS button) {
     switch (button) {
     case d_left:
@@ -295,7 +280,8 @@ public:
 
   //   last_time = now;
 
-  //   printf("Time for last %u polls: %f seconds\n", n_print_cycle, elapsed_secs);
+  //   printf("Time for last %u polls: %f seconds\n", n_print_cycle,
+  //   elapsed_secs);
   //   printf("Bad 0x00: %u\nBad 0x30: %u\n\n", n_bad_data_thirty,
   //          n_bad_data_zero);
 
@@ -332,9 +318,10 @@ public:
 
     if (hid_write(controller_ptr, data.data(), length) < 0) {
       red();
-      printf("ERROR: read() returned -1!\nDid you disconnect the controller?\n");
+      printf(
+          "ERROR: read() returned -1!\nDid you disconnect the controller?\n");
       normal();
-      throw -1;
+      throw - 1;
       return {};
     }
 
@@ -379,7 +366,8 @@ public:
     return send_command(command, buffer);
   }
 
-  // void print_sticks(const uint8_t &data0, const uint8_t &data1, const uint8_t &data2,
+  // void print_sticks(const uint8_t &data0, const uint8_t &data1, const uint8_t
+  // &data2,
   //                   const uint8_t &data3, const uint8_t &data4,
   //                   const uint8_t &data5) {
   //   uint8_t left_x = ((data1 & 0x0F) << 4) | ((data0 & 0xF0) >> 4);
@@ -397,14 +385,16 @@ public:
   //   printf("right_y %d\n\n", right_y);
   //   normal();
 
-  //   // if(left_x == 0x00 || left_y == 0x00 || right_x == 0x00 || right_y == 0x00
+  //   // if(left_x == 0x00 || left_y == 0x00 || right_x == 0x00 || right_y ==
+  //   0x00
   //   // ) {
   //   //     return -1;
   //   // }
   //   // return 0;
   // }
 
-  // void print_buttons(const uint8_t &left, const uint8_t &mid, const uint8_t &right) {
+  // void print_buttons(const uint8_t &left, const uint8_t &mid, const uint8_t
+  // &right) {
   //   // uint8_t left = buttons[0];
   //   // uint8_t mid = buttons[1];
   //   // uint8_t right = buttons[2];
@@ -449,6 +439,28 @@ public:
   // }
 
   void clear_console() { system("clear"); }
+
+  exchange_array send_rumble(uint8_t large_motor, uint8_t small_motor) {
+    std::array<uint8_t, 9> buf{static_cast<uint8_t>(rumble_counter++ & 0xF),
+                               0x80,
+                               0x00,
+                               0x40,
+                               0x40,
+                               0x80,
+                               0x00,
+                               0x40,
+                               0x40};
+    if (large_motor != 0) {
+      buf[1] = buf[5] = 0x08;
+      buf[2] = buf[6] = large_motor;
+    } else if (small_motor != 0) {
+      buf[1] = buf[5] = 0x10;
+      buf[2] = buf[6] = small_motor;
+    }
+    exchange_array ret = send_command(0x10, buf);
+    print_exchange_array(ret);
+    return ret;
+  }
 
   int poll_input() {
     // print_cycle_counter++;
@@ -517,7 +529,8 @@ public:
         normal();
 
         calibrated = true;
-        send_subcommand(0x1, led_command, led_calibrated);
+        // send_rumble(0,255);
+        // send_subcommand(0x1, led_command, led_calibrated);
 
         return;
       }
@@ -551,6 +564,7 @@ public:
       bool cal = do_calibrate(dat[0x10], dat[0x11], dat[0x12], dat[0x13],
                               dat[0x14], dat[0x15], dat[0x0e]);
       if (cal) {
+        // send_rumble(0,255);
         calibrated = true;
         send_subcommand(0x1, led_command, led_calibrated);
         // printf("finished calibration\n");
@@ -595,6 +609,20 @@ public:
     uint8_t right_x = ((stick4 & 0x0F) << 4) | ((stick3 & 0xF0) >> 4);
     uint8_t right_y = stick5;
 
+    // invert
+    if (invert_LX) {
+      left_x = 255 - left_x;
+    }
+    if (invert_LY) {
+      left_y = 255 - left_y;
+    }
+    if (invert_RX) {
+      right_x = 255 - right_x;
+    }
+    if (invert_RY) {
+      right_y = 255 - right_y;
+    }
+
     left_x_min = (left_x < left_x_min) ? left_x : left_x_min;
     left_y_min = (left_y < left_y_min) ? left_y : left_y_min;
     right_x_min = (right_x < right_x_min) ? right_x : right_x_min;
@@ -613,8 +641,20 @@ public:
     // printf("left_y_max: %u\n", left_y_max);
     // printf("right_x_max: %u\n", right_x_max);
     // printf("right_y_max: %u\n\n", right_y_max);
+    // print_calibration_values();
 
     return (mid_buttons & byte_button_value(share));
+  }
+
+  void print_calibration_values() {
+    std::cout << "LX: " << (unsigned int)left_x_min << ","
+              << (unsigned int)left_x_max
+              << "   LY: " << (unsigned int)left_y_min << ","
+              << (unsigned int)left_y_max
+              << "   RX: " << (unsigned int)right_x_min << ","
+              << (unsigned int)right_x_max
+              << "   RY: " << (unsigned int)right_y_min << ","
+              << (unsigned int)right_y_max << "                \r";
   }
 
   void decalibrate() {
@@ -643,13 +683,13 @@ public:
   const void map_sticks(uint8_t &left_x, uint8_t &left_y, uint8_t &right_x,
                         uint8_t &right_y) {
     left_x = (uint8_t)(clamp((float)(left_x - left_x_min) /
-                           (float)(left_x_max - left_x_min) * 255.f));
+                             (float)(left_x_max - left_x_min) * 255.f));
     left_y = (uint8_t)(clamp((float)(left_y - left_y_min) /
-                           (float)(left_y_max - left_y_min) * 255.f));
+                             (float)(left_y_max - left_y_min) * 255.f));
     right_x = (uint8_t)(clamp((float)(right_x - right_x_min) /
-                            (float)(right_x_max - right_x_min) * 255.f));
+                              (float)(right_x_max - right_x_min) * 255.f));
     right_y = (uint8_t)(clamp((float)(right_y - right_y_min) /
-                            (float)(right_y_max - right_y_min) * 255.f));
+                              (float)(right_y_max - right_y_min) * 255.f));
   }
 
   static const float clamp(float inp) {
@@ -691,11 +731,13 @@ public:
   }
 
   /* Hackishly detects when the controller is trapped in a bad loop.
-  Nothing to do here, need to restart driver :(*/
+  Nothing to do here, need to reopen device :(*/
   bool detect_bad_data(const uint8_t &dat1, const uint8_t &dat2) {
     return (dat2 == 0x01 && dat1 == 0x81) ? true : bad_data_detected;
   }
 
+  /* If this returns true, there is no controller information in this package,
+   * we can skip it*/
   bool detect_useless_data(const uint8_t &dat) {
     if (dat == 0x30)
       n_bad_data_thirty++;
@@ -744,6 +786,8 @@ public:
     // controller_ptr = hid_open_path("/dev/input/hidraw0");
     is_opened = true;
 
+
+    //printf("SERIAL NUMBER: %u\n", serial_number);
     if (!controller_ptr) {
       return -1;
     }
@@ -822,15 +866,27 @@ public:
   //-------------------------
 
   void uinput_manage_dpad(const char &left) {
-    bool b_d_left = left & byte_button_value(d_left);
-    bool b_d_right = left & byte_button_value(d_right);
-#ifndef ROCKET_LEAGUE // upside down in RL....
-    bool b_d_up = left & byte_button_value(d_up);
-    bool b_d_down = left & byte_button_value(d_down);
-#else
-    bool b_d_up = left & byte_button_value(d_down);
-    bool b_d_down = left & byte_button_value(d_up);
-#endif
+    bool b_d_left;
+    bool b_d_right;
+    bool b_d_up;
+    bool b_d_down;
+
+    // invert
+    if (!invert_DX) {
+      b_d_left = left & byte_button_value(d_left);
+      b_d_right = left & byte_button_value(d_right);
+    } else {
+      b_d_left = left & byte_button_value(d_right);
+      b_d_right = left & byte_button_value(d_left);
+    }
+
+    if (!invert_DY) {
+      b_d_up = left & byte_button_value(d_up);
+      b_d_down = left & byte_button_value(d_down);
+    } else {
+      b_d_up = left & byte_button_value(d_down);
+      b_d_down = left & byte_button_value(d_up);
+    }
 
     memset(&uinput_event, 0, sizeof(uinput_event));
     gettimeofday(&uinput_event.time, NULL);
@@ -874,10 +930,19 @@ public:
     bool b_home = mid & byte_button_value(home);
     bool b_plus = mid & byte_button_value(plus);
     bool b_minus = mid & byte_button_value(minus);
-    bool b_a = right & byte_button_value(A);
-    bool b_b = right & byte_button_value(B);
-    bool b_x = right & byte_button_value(X);
-    bool b_y = right & byte_button_value(Y);
+
+    bool b_a, b_b, b_x, b_y;
+    if (!swap_buttons) {
+      b_a = right & byte_button_value(A);
+      b_b = right & byte_button_value(B);
+      b_x = right & byte_button_value(X);
+      b_y = right & byte_button_value(Y);
+    } else {
+      b_a = right & byte_button_value(B);
+      b_b = right & byte_button_value(A);
+      b_x = right & byte_button_value(Y);
+      b_y = right & byte_button_value(X);
+    }
 
     // press
     if (b_a && !last_a)
@@ -900,423 +965,428 @@ public:
     if (b_y && !last_y)
       uinput_button_down(BTN_NORTH);
 #endif
-  
-  // if (b_d_down && !last_d_down)
-  //   uinput_button_down(BTN_DPAD_DOWN);
-  // if (b_d_up && !last_d_up)
-  //   uinput_button_down(BTN_DPAD_UP);
-  // if (b_d_left && !last_d_left)
-  //   uinput_button_down(BTN_DPAD_LEFT);
-  // if (b_d_right && !last_d_right)
-  //   uinput_button_down(BTN_DPAD_RIGHT);
-  if (b_plus && !last_plus)
-    uinput_button_down(BTN_START);
-  if (b_minus && !last_minus)
-    uinput_button_down(BTN_SELECT);
-  if (b_L1 && !last_L1)
-    uinput_button_down(BTN_TL);
-  // if (b_L2 && !last_L2)
-  //   uinput_button_down(BTN_TL2);
-  if (b_R1 && !last_R1)
-    uinput_button_down(BTN_TR);
-  // if (b_R2 && !last_R2)
-  //   uinput_button_down(BTN_TR2);
-  if (b_L3 && !last_L3)
-    uinput_button_down(BTN_THUMBL);
-  if (b_R3 && !last_R3)
-    uinput_button_down(BTN_THUMBR);
-  // if (b_L1 && !last_L1)
-  //   uinput_button_down(BTN_TL);
 
-  // release
-  if (!b_a && last_a)
-    uinput_button_release(BTN_EAST);
-  if (!b_b && last_b)
-    uinput_button_release(BTN_SOUTH);
-  if (!b_x && last_x)
-    uinput_button_release(BTN_WEST);
+    // if (b_d_down && !last_d_down)
+    //   uinput_button_down(BTN_DPAD_DOWN);
+    // if (b_d_up && !last_d_up)
+    //   uinput_button_down(BTN_DPAD_UP);
+    // if (b_d_left && !last_d_left)
+    //   uinput_button_down(BTN_DPAD_LEFT);
+    // if (b_d_right && !last_d_right)
+    //   uinput_button_down(BTN_DPAD_RIGHT);
+    if (b_plus && !last_plus)
+      uinput_button_down(BTN_START);
+    if (b_minus && !last_minus)
+      uinput_button_down(BTN_SELECT);
+    if (b_L1 && !last_L1)
+      uinput_button_down(BTN_TL);
+    // if (b_L2 && !last_L2)
+    //   uinput_button_down(BTN_TL2);
+    if (b_R1 && !last_R1)
+      uinput_button_down(BTN_TR);
+    // if (b_R2 && !last_R2)
+    //   uinput_button_down(BTN_TR2);
+    if (b_L3 && !last_L3)
+      uinput_button_down(BTN_THUMBL);
+    if (b_R3 && !last_R3)
+      uinput_button_down(BTN_THUMBR);
+    // if (b_L1 && !last_L1)
+    //   uinput_button_down(BTN_TL);
+
+    // release
+    if (!b_a && last_a)
+      uinput_button_release(BTN_EAST);
+    if (!b_b && last_b)
+      uinput_button_release(BTN_SOUTH);
+    if (!b_x && last_x)
+      uinput_button_release(BTN_WEST);
 
 #ifdef DRIBBLE_MODE
-  if (!b_y && last_y)
-    uinput_button_release(BTN_WEST);
-  if (!b_share && last_share)
-    uinput_button_release(BTN_NORTH);
+    if (!b_y && last_y)
+      uinput_button_release(BTN_WEST);
+    if (!b_share && last_share)
+      uinput_button_release(BTN_NORTH);
 #else
-  if (!b_y && last_y) 
-    uinput_button_release(BTN_NORTH);
+    if (!b_y && last_y)
+      uinput_button_release(BTN_NORTH);
 #endif
 
-// if (!b_d_down && last_d_down)
-//   uinput_button_release(BTN_DPAD_DOWN);
-// if (!b_d_up && last_d_up)
-//   uinput_button_release(BTN_DPAD_UP);
-// if (!b_d_left && last_d_left)
-//   uinput_button_release(BTN_DPAD_LEFT);
-// if (!b_d_right && last_d_right)
-//   uinput_button_release(BTN_DPAD_RIGHT);
-if (!b_plus && last_plus) uinput_button_release(BTN_START);
-if (!b_minus && last_minus)
-  uinput_button_release(BTN_SELECT);
-if (!b_L1 && last_L1)
-  uinput_button_release(BTN_TL);
-// if (!b_L2 && last_L2)
-//   uinput_button_release(BTN_TL2);
-if (!b_R1 && last_R1)
-  uinput_button_release(BTN_TR);
-// if (!b_R2 && last_R2)
-//   uinput_button_release(BTN_TR2);
-if (!b_L3 && last_L3)
-  uinput_button_release(BTN_THUMBL);
-if (!b_R3 && last_R3)
-  uinput_button_release(BTN_THUMBR);
-// if (!b_L1 && last_L1)
-//   uinput_button_release(BTN_TL);
+    // if (!b_d_down && last_d_down)
+    //   uinput_button_release(BTN_DPAD_DOWN);
+    // if (!b_d_up && last_d_up)
+    //   uinput_button_release(BTN_DPAD_UP);
+    // if (!b_d_left && last_d_left)
+    //   uinput_button_release(BTN_DPAD_LEFT);
+    // if (!b_d_right && last_d_right)
+    //   uinput_button_release(BTN_DPAD_RIGHT);
+    if (!b_plus && last_plus)
+      uinput_button_release(BTN_START);
+    if (!b_minus && last_minus)
+      uinput_button_release(BTN_SELECT);
+    if (!b_L1 && last_L1)
+      uinput_button_release(BTN_TL);
+    // if (!b_L2 && last_L2)
+    //   uinput_button_release(BTN_TL2);
+    if (!b_R1 && last_R1)
+      uinput_button_release(BTN_TR);
+    // if (!b_R2 && last_R2)
+    //   uinput_button_release(BTN_TR2);
+    if (!b_L3 && last_L3)
+      uinput_button_release(BTN_THUMBL);
+    if (!b_R3 && last_R3)
+      uinput_button_release(BTN_THUMBR);
+    // if (!b_L1 && last_L1)
+    //   uinput_button_release(BTN_TL);
 
-// last_d_left = b_d_left;
-// last_d_right = b_d_right;
-// last_d_up = b_d_up;
-// last_d_down = b_d_down;
-last_L1 = b_L1;
-// last_L2 = b_L2;
-last_L3 = b_L3;
-last_R1 = b_R1;
-// last_R2 = b_R2;
-last_R3 = b_R3;
-last_share = b_share;
-last_home = b_home;
-last_plus = b_plus;
-last_minus = b_minus;
-last_a = b_a;
-last_b = b_b;
-last_x = b_x;
-last_y = b_y;
+    // last_d_left = b_d_left;
+    // last_d_right = b_d_right;
+    // last_d_up = b_d_up;
+    // last_d_down = b_d_down;
+    last_L1 = b_L1;
+    // last_L2 = b_L2;
+    last_L3 = b_L3;
+    last_R1 = b_R1;
+    // last_R2 = b_R2;
+    last_R3 = b_R3;
+    last_share = b_share;
+    last_home = b_home;
+    last_plus = b_plus;
+    last_minus = b_minus;
+    last_a = b_a;
+    last_b = b_b;
+    last_x = b_x;
+    last_y = b_y;
 
-// do triggers here as well
-int val = b_L2 ? 255 : 0;
-uinput_write_single_joystick(val, ABS_Z);
-val = b_R2 ? 255 : 0;
-uinput_write_single_joystick(val, ABS_RZ);
+    // do triggers here as well
+    int val = b_L2 ? 255 : 0;
+    uinput_write_single_joystick(val, ABS_Z);
+    val = b_R2 ? 255 : 0;
+    uinput_write_single_joystick(val, ABS_RZ);
 
-// send report
-uinput_event.type = EV_SYN;
-uinput_event.code = SYN_REPORT;
-uinput_event.value = 0;
-write(uinput_fd, &uinput_event, sizeof(uinput_event));
-}
+    // send report
+    uinput_event.type = EV_SYN;
+    uinput_event.code = SYN_REPORT;
+    uinput_event.value = 0;
+    write(uinput_fd, &uinput_event, sizeof(uinput_event));
+  }
 
-bool calibration_file_exists() {
-  std::ifstream conf("procon_calibration_data");
-  return conf.good();
-}
+  bool calibration_file_exists() {
+    std::ifstream conf("procon_calibration_data");
+    return conf.good();
+  }
 
-void uinput_manage_joysticks(const char &dat0, const char &dat1,
-                             const char &dat2, const char &dat3,
-                             const char &dat4, const char &dat5) {
-  // extract data
-  uint8_t left_x = ((dat1 & 0x0F) << 4) | ((dat0 & 0xF0) >> 4);
-  uint8_t left_y = dat2;
-  uint8_t right_x = ((dat4 & 0x0F) << 4) | ((dat3 & 0xF0) >> 4);
-  uint8_t right_y = dat5;
+  void uinput_manage_joysticks(const char &dat0, const char &dat1,
+                               const char &dat2, const char &dat3,
+                               const char &dat4, const char &dat5) {
+    // extract data
+    uint8_t left_x = ((dat1 & 0x0F) << 4) | ((dat0 & 0xF0) >> 4);
+    uint8_t left_y = dat2;
+    uint8_t right_x = ((dat4 & 0x0F) << 4) | ((dat3 & 0xF0) >> 4);
+    uint8_t right_y = dat5;
 
-  // map data
-  map_sticks(left_x, left_y, right_x, right_y);
+    // invert
+    if (invert_LX) {
+      left_x = 255 - left_x;
+    }
+    if (invert_LY) {
+      left_y = 255 - left_y;
+    }
+    if (invert_RX) {
+      right_x = 255 - right_x;
+    }
+    if (invert_RY) {
+      right_y = 255 - right_y;
+    }
 
-  // write uinput
-  memset(&uinput_event, 0, sizeof(uinput_event));
+    // map data
+    map_sticks(left_x, left_y, right_x, right_y);
 
-  // left_x = 0;
-  // left_y = 127;
-  // right_x = 255;
-  // right_y = 200;
-  gettimeofday(&uinput_event.time, NULL);
+    // write uinput
+    memset(&uinput_event, 0, sizeof(uinput_event));
 
-  uinput_write_single_joystick(left_x, ABS_X);
-  uinput_write_single_joystick(255 - left_y, ABS_Y);
-  uinput_write_single_joystick(right_x, ABS_RX);
+    // left_x = 0;
+    // left_y = 127;
+    // right_x = 255;
+    // right_y = 200;
+    gettimeofday(&uinput_event.time, NULL);
+
+    uinput_write_single_joystick(left_x, ABS_X);
+    uinput_write_single_joystick(left_y, ABS_Y);
+    uinput_write_single_joystick(right_x, ABS_RX);
 #ifndef DRIBBLE_MODE
-  uinput_write_single_joystick(right_y, ABS_RY);
+    uinput_write_single_joystick(right_y, ABS_RY);
 #else
-  if (dribble_mode) {
-    right_y = clamp_int(right_y + dribble_mode_value - 127);
-  }
+    if (dribble_mode) {
+      right_y = clamp_int(right_y + dribble_mode_value - 127);
+    }
 #endif
-  uinput_write_single_joystick(right_y, ABS_RY);
-  // send report
-  uinput_event.type = EV_SYN;
-  uinput_event.code = SYN_REPORT;
-  uinput_event.value = 0;
-  write(uinput_fd, &uinput_event, sizeof(uinput_event));
+    uinput_write_single_joystick(right_y, ABS_RY);
+    // send report
+    uinput_event.type = EV_SYN;
+    uinput_event.code = SYN_REPORT;
+    uinput_event.value = 0;
+    write(uinput_fd, &uinput_event, sizeof(uinput_event));
 
-  // clear_console();
-  // printf("left_x: %i\n", (int)left_x);
-  // printf("left_y: %i\n", (int)left_y);
-  // printf("right_x: %i\n", (int)right_x);
-  // printf("right_y: %i\n", (int)right_y);
-}
+    // clear_console();
+    // printf("left_x: %i\n", (int)left_x);
+    // printf("left_y: %i\n", (int)left_y);
+    // printf("right_x: %i\n", (int)right_x);
+    // printf("right_y: %i\n", (int)right_y);
+  }
 
-void uinput_write_single_joystick(const int &val, const int &cod) {
+  void uinput_write_single_joystick(const int &val, const int &cod) {
 
-  uinput_event.type = EV_ABS;
-  uinput_event.code = cod; // BTN_EAST;
-  uinput_event.value = (int)val;
+    uinput_event.type = EV_ABS;
+    uinput_event.code = cod; // BTN_EAST;
+    uinput_event.value = (int)val;
 
-  int ret = write(uinput_fd, &uinput_event, sizeof(uinput_event));
-  if (ret < 0) {
-    red();
-    printf("ERROR: write in button_down() returned %i\n", ret);
+    int ret = write(uinput_fd, &uinput_event, sizeof(uinput_event));
+    if (ret < 0) {
+      red();
+      printf("ERROR: write in button_down() returned %i\n", ret);
+      normal();
+    }
+  }
+
+  void uinput_button_down(const int &cod) {
+
+    // press button
+    memset(&uinput_event, 0, sizeof(uinput_event));
+    gettimeofday(&uinput_event.time, NULL);
+    uinput_event.type = EV_KEY;
+    uinput_event.code = cod; // BTN_EAST;
+    uinput_event.value = 1;
+    int ret = write(uinput_fd, &uinput_event, sizeof(uinput_event));
+    if (ret < 0) {
+      red();
+      printf("ERROR: write in button_down() returned %i\n", ret);
+      normal();
+    }
+
+    // if (ret < 0)
+    // {
+    //   red();
+    //   printf("ERROR: write in button_down() send report returned %i\n", ret);
+    //   normal();
+    // }
+
+    // printf("PRessed button %u\n", cod);
+  }
+
+  void uinput_button_release(const int &cod) {
+    // release button
+    memset(&uinput_event, 0, sizeof(uinput_event));
+    gettimeofday(&uinput_event.time, NULL);
+    uinput_event.type = EV_KEY;
+    uinput_event.code = cod;
+    uinput_event.value = 0;
+    write(uinput_fd, &uinput_event, sizeof(uinput_event));
+
+    // send report
+    uinput_event.type = EV_SYN;
+    uinput_event.code = SYN_REPORT;
+    uinput_event.value = 0;
+    write(uinput_fd, &uinput_event, sizeof(uinput_event));
+  }
+
+  int uinput_create() {
+    uinput_fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
+    uinput_rc = ioctl(uinput_fd, UI_GET_VERSION, &uinput_version);
+
+    memset(&uinput_device, 0, sizeof(uinput_device));
+
+
+    uinput_device.id.bustype = BUS_USB;
+    uinput_device.id.vendor = 0x045e;  // Microsoft
+    uinput_device.id.product = 0x028e; // XBOX 360
+    uinput_device.id.version = 0x110;  // dunno but xboxdrv uses this
+    strncpy(uinput_device.name, "Switch ProController disguised as XBox360",
+            UINPUT_MAX_NAME_SIZE);
+
+
+    // buttons
+    ioctl(uinput_fd, UI_SET_EVBIT, EV_KEY);
+
+    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_EAST);
+    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_SOUTH);
+    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_NORTH);
+    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_WEST);
+    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_MODE);
+    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_TL);
+    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_TR);
+    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_THUMBL);
+    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_THUMBR);
+    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_START);
+    ioctl(uinput_fd, UI_SET_KEYBIT, BTN_SELECT);
+
+    // joysticks
+    ioctl(uinput_fd, UI_SET_EVBIT, EV_ABS);
+
+    ioctl(uinput_fd, UI_SET_ABSBIT, ABS_X);
+    ioctl(uinput_fd, UI_SET_ABSBIT, ABS_Y);
+    ioctl(uinput_fd, UI_SET_ABSBIT, ABS_RX);
+    ioctl(uinput_fd, UI_SET_ABSBIT, ABS_RY);
+    ioctl(uinput_fd, UI_SET_ABSBIT, ABS_Z);  // L2
+    ioctl(uinput_fd, UI_SET_ABSBIT, ABS_RZ); // R2
+    ioctl(uinput_fd, UI_SET_ABSBIT, ABS_HAT0X);
+    ioctl(uinput_fd, UI_SET_ABSBIT, ABS_HAT0Y);
+
+    uinput_device.absmin[ABS_X] = 0;
+    uinput_device.absmax[ABS_X] = 255;
+    uinput_device.absmin[ABS_Y] = 0;
+    uinput_device.absmax[ABS_Y] = 255;
+    uinput_device.absmin[ABS_RX] = 0;
+    uinput_device.absmax[ABS_RX] = 255;
+    uinput_device.absmin[ABS_RY] = 0;
+    uinput_device.absmax[ABS_RY] = 255;
+    uinput_device.absmin[ABS_Z] = 0;
+    uinput_device.absmax[ABS_Z] = 255;
+    uinput_device.absmin[ABS_RZ] = 0;
+    uinput_device.absmax[ABS_RZ] = 255;
+    uinput_device.absmin[ABS_HAT0X] = -1;
+    uinput_device.absmax[ABS_HAT0X] = 1;
+    uinput_device.absmin[ABS_HAT0Y] = -1;
+    uinput_device.absmax[ABS_HAT0Y] = 1;
+
+    write(uinput_fd, &uinput_device, sizeof(uinput_device));
+
+    if (ioctl(uinput_fd, UI_DEV_CREATE)) {
+      //return -1;
+    }
+
+    green();
+    printf("Created uinput device!\n");
     normal();
+
+    return 0;
   }
-}
 
-void uinput_button_down(const int &cod) {
 
-  // press button
-  memset(&uinput_event, 0, sizeof(uinput_event));
-  gettimeofday(&uinput_event.time, NULL);
-  uinput_event.type = EV_KEY;
-  uinput_event.code = cod; // BTN_EAST;
-  uinput_event.value = 1;
-  int ret = write(uinput_fd, &uinput_event, sizeof(uinput_event));
-  if (ret < 0) {
-    red();
-    printf("ERROR: write in button_down() returned %i\n", ret);
+
+  void uinput_destroy() {
+    ioctl(uinput_fd, UI_DEV_DESTROY);
+
+    close(uinput_fd);
+
+    yellow();
+    printf("Destroyed uinput device!\n");
     normal();
+
+    return;
   }
 
-  // if (ret < 0)
-  // {
-  //   red();
-  //   printf("ERROR: write in button_down() send report returned %i\n", ret);
-  //   normal();
-  // }
-
-  // printf("PRessed button %u\n", cod);
-}
-
-void uinput_button_release(const int &cod) {
-  // release button
-  memset(&uinput_event, 0, sizeof(uinput_event));
-  gettimeofday(&uinput_event.time, NULL);
-  uinput_event.type = EV_KEY;
-  uinput_event.code = cod;
-  uinput_event.value = 0;
-  write(uinput_fd, &uinput_event, sizeof(uinput_event));
-
-  // send report
-  uinput_event.type = EV_SYN;
-  uinput_event.code = SYN_REPORT;
-  uinput_event.value = 0;
-  write(uinput_fd, &uinput_event, sizeof(uinput_event));
-}
-
-int uinput_create() {
-  uinput_fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
-  uinput_rc = ioctl(uinput_fd, UI_GET_VERSION, &uinput_version);
-
-  memset(&uinput_device, 0, sizeof(uinput_device));
-
-  // strncpy(uinput_device.name, "Nintendo Switch Pro Controller USB",
-  //        UINPUT_MAX_NAME_SIZE);
-  // strncpy(uinput_device.name, "Nintendo Switch Pro Controller USB",
-  //         UINPUT_MAX_NAME_SIZE);
-  uinput_device.id.bustype = BUS_USB;
-  uinput_device.id.vendor = 0x045e;  // Microsoft
-  uinput_device.id.product = 0x028e; // XBOX 360
-  uinput_device.id.version = 0x110;  // dunno but xboxdrv uses this
-  strncpy(uinput_device.name, "Switch ProController disguised as XBox360",
-          UINPUT_MAX_NAME_SIZE);
-  // strncpy(
-  //    uinput_device.name, "Microsoft X-Box 360 pad",
-  //    UINPUT_MAX_NAME_SIZE); // is this trigger fo "being" an xbox
-  //    device...?
-
-  // buttons
-  ioctl(uinput_fd, UI_SET_EVBIT, EV_KEY);
-
-  // sudo xboxdrv --evdev /dev/input/event2 --evdev-absmap
-  // ABS_X=x1,ABS_Y=y1,ABS_RX=x2,ABS_RY=y2,ABS_HAT0X=dpad_x,ABS_HAT0Y=dpad_y
-  // --axismap -Y1=Y1,-Y2=Y2 --evdev-keymap
-  // BTN_SOUTH=a,BTN_EAST=b,BTN_WEST=x,BTN_NORTH=y,BTN_TL=lb,BTN_TR=rb,BTN_TL2=lt,BTN_TR2=rt,BTN_THUMBL=tl,BTN_THUMBR=tr,BTN_SELECT=back,BTN_START=start
-  // --silent &
-
-  ioctl(uinput_fd, UI_SET_KEYBIT, BTN_EAST);
-  ioctl(uinput_fd, UI_SET_KEYBIT, BTN_SOUTH);
-  ioctl(uinput_fd, UI_SET_KEYBIT, BTN_NORTH);
-  ioctl(uinput_fd, UI_SET_KEYBIT, BTN_WEST);
-  // ioctl(uinput_fd, UI_SET_KEYBIT, BTN_DPAD_DOWN);
-  // ioctl(uinput_fd, UI_SET_KEYBIT, BTN_DPAD_UP);
-  // ioctl(uinput_fd, UI_SET_KEYBIT, BTN_DPAD_LEFT);
-  // ioctl(uinput_fd, UI_SET_KEYBIT, BTN_DPAD_RIGHT);
-  ioctl(uinput_fd, UI_SET_KEYBIT, BTN_MODE);
-  ioctl(uinput_fd, UI_SET_KEYBIT, BTN_TL);
-  // ioctl(uinput_fd, UI_SET_KEYBIT, BTN_TL2);
-  ioctl(uinput_fd, UI_SET_KEYBIT, BTN_TR);
-  // ioctl(uinput_fd, UI_SET_KEYBIT, BTN_TR2);
-  ioctl(uinput_fd, UI_SET_KEYBIT, BTN_THUMBL);
-  ioctl(uinput_fd, UI_SET_KEYBIT, BTN_THUMBR);
-  ioctl(uinput_fd, UI_SET_KEYBIT, BTN_START);
-  ioctl(uinput_fd, UI_SET_KEYBIT, BTN_SELECT);
-
-  // joysticks
-  ioctl(uinput_fd, UI_SET_EVBIT, EV_ABS);
-
-  ioctl(uinput_fd, UI_SET_ABSBIT, ABS_X);
-  ioctl(uinput_fd, UI_SET_ABSBIT, ABS_Y);
-  ioctl(uinput_fd, UI_SET_ABSBIT, ABS_RX);
-  ioctl(uinput_fd, UI_SET_ABSBIT, ABS_RY);
-  ioctl(uinput_fd, UI_SET_ABSBIT, ABS_Z);  // L2
-  ioctl(uinput_fd, UI_SET_ABSBIT, ABS_RZ); // R2
-  ioctl(uinput_fd, UI_SET_ABSBIT, ABS_HAT0X);
-  ioctl(uinput_fd, UI_SET_ABSBIT, ABS_HAT0Y);
-
-  uinput_device.absmin[ABS_X] = 0;
-  uinput_device.absmax[ABS_X] = 255;
-  uinput_device.absmin[ABS_Y] = 0;
-  uinput_device.absmax[ABS_Y] = 255;
-  uinput_device.absmin[ABS_RX] = 0;
-  uinput_device.absmax[ABS_RX] = 255;
-  uinput_device.absmin[ABS_RY] = 0;
-  uinput_device.absmax[ABS_RY] = 255;
-  uinput_device.absmin[ABS_Z] = 0;
-  uinput_device.absmax[ABS_Z] = 255;
-  uinput_device.absmin[ABS_RZ] = 0;
-  uinput_device.absmax[ABS_RZ] = 255;
-  uinput_device.absmin[ABS_HAT0X] = -1;
-  uinput_device.absmax[ABS_HAT0X] = 1;
-  uinput_device.absmin[ABS_HAT0Y] = -1;
-  uinput_device.absmax[ABS_HAT0Y] = 1;
-
-  write(uinput_fd, &uinput_device, sizeof(uinput_device));
-
-  if (ioctl(uinput_fd, UI_DEV_CREATE)) {
-    return -1;
+  static const void red() {
+    printf("%s", KRED);
+    fflush(stdout);
   }
+  static const void normal() {
+    printf("%s", KNRM);
+    fflush(stdout);
+  }
+  static const void blue() {
+    printf("%s", KBLU);
+    fflush(stdout);
+  }
+  static const void yellow() {
+    printf("%s", KYEL);
+    fflush(stdout);
+  }
+  static const void green() {
+    printf("%s", KGRN);
+    fflush(stdout);
+  }
+  static const void magenta() {
+    printf("%s", KMAG);
+    fflush(stdout);
+  }
+  static const void cyan() {
+    printf("%s", KCYN);
+    fflush(stdout);
+  }
+  std::clock_t last_time;
 
-  green();
-  printf("Created uinput device!\n");
-  normal();
+  std::array<uint8_t, 20> first{{0x0}};
+  std::array<uint8_t, 20> second{{0x0}};
+  std::array<uint8_t, 20> third{{0x0}};
+  std::array<uint8_t, 20> fourth{{0x0}};
+  std::array<uint8_t, 20> fifth{{0x0}};
+  std::array<uint8_t, 20> sixth{{0x0}};
 
-  return 0;
-}
+  uint8_t rumble_counter{0};
+  const std::array<uint8_t, 1> led_calibration{{0xff}};
+  const std::array<uint8_t, 1> led_calibrated{{0x01}};
+  const std::array<uint8_t, 0> empty{{}};
+  const std::array<uint8_t, 2> handshake{{0x80, 0x02}};
+  const std::array<uint8_t, 2> switch_baudrate{{0x80, 0x03}};
+  const std::array<uint8_t, 2> hid_only_mode{{0x80, 0x04}};
+  // const std::array<uint8_t, 4> blink_array{{0x05, 0x10}};//, 0x04, 0x08}};
 
-void uinput_destroy() {
-  ioctl(uinput_fd, UI_DEV_DESTROY);
+  // uint blink_position = 0;
+  // size_t blink_counter = 0;
+  // const size_t blink_length = 50;
 
-  close(uinput_fd);
+  bool bad_data_detected = false;
 
-  yellow();
-  printf("Destroyed uinput device!\n");
-  normal();
+  hid_device *controller_ptr;
 
-  return;
-}
+  unsigned short ven_id;
+  unsigned short prod_id;
+  unsigned short n_controller;
 
+  uint n_print_cycle = 1000;
+  uint print_cycle_counter = 0;
+  uint n_bad_data_zero = 0;
+  uint n_bad_data_thirty = 0;
 
-static const void red() {
-  printf("%s", KRED);
-  fflush(stdout);
-}
-static const void normal() {
-  printf("%s", KNRM);
-  fflush(stdout);
-}
-static const void blue() {
-  printf("%s", KBLU);
-  fflush(stdout);
-}
-static const void yellow() {
-  printf("%s", KYEL);
-  fflush(stdout);
-}
-static const void green() {
-  printf("%s", KGRN);
-  fflush(stdout);
-}
-static const void magenta() {
-  printf("%s", KMAG);
-  fflush(stdout);
-}
-static const void cyan() {
-  printf("%s", KCYN);
-  fflush(stdout);
-}
-std::clock_t last_time;
+  bool is_opened = false;
+  bool calibrated = false;
+  bool read_calibration_from_file =
+      true; // will be set to false in decalibrate or with flags
+  bool share_button_free = false; // used for recalibration (press share & home)
+  uint8_t left_x_min = 0x7e;
+  uint8_t left_y_min = 0x7e;
+  uint8_t right_x_min = 0x7e;
+  uint8_t right_y_min = 0x7e;
+  uint8_t left_x_max = 0x7e;
+  uint8_t left_y_max = 0x7e;
+  uint8_t right_x_max = 0x7e;
+  uint8_t right_y_max = 0x7e;
 
-std::array<uint8_t, 20> first{{0x0}};
-std::array<uint8_t, 20> second{{0x0}};
-std::array<uint8_t, 20> third{{0x0}};
-std::array<uint8_t, 20> fourth{{0x0}};
-std::array<uint8_t, 20> fifth{{0x0}};
-std::array<uint8_t, 20> sixth{{0x0}};
+  // bool last_d_left = false;
+  // bool last_d_right = false;
+  // bool last_d_up = false;
+  // bool last_d_down = false;
+  bool last_L1 = false;
+  // bool last_L2 = false;
+  bool last_L3 = false;
+  bool last_R1 = false;
+  // bool last_R2 = false;
+  bool last_R3 = false;
+  bool last_share = false;
+  bool last_home = false;
+  bool last_plus = false;
+  bool last_minus = false;
+  bool last_a = false;
+  bool last_b = false;
+  bool last_x = false;
+  bool last_y = false;
 
-uint8_t rumble_counter{0};
-const std::array<uint8_t, 1> led_calibration{{0xff}};
-const std::array<uint8_t, 1> led_calibrated{{0x01}};
-const std::array<uint8_t, 0> empty{{}};
-const std::array<uint8_t, 2> handshake{{0x80, 0x02}};
-const std::array<uint8_t, 2> switch_baudrate{{0x80, 0x03}};
-const std::array<uint8_t, 2> hid_only_mode{{0x80, 0x04}};
-// const std::array<uint8_t, 4> blink_array{{0x05, 0x10}};//, 0x04, 0x08}};
+  bool dribble_mode = false;
+  int dribble_mode_value = 205;
 
-// uint blink_position = 0;
-// size_t blink_counter = 0;
-// const size_t blink_length = 50;
+  bool invert_LX = false;
+  bool invert_LY = false;
+  bool invert_RX = false;
+  bool invert_RY = false;
+  bool invert_DX = false;
+  bool invert_DY = false;
 
-bool bad_data_detected = false;
+  bool swap_buttons = false;
 
-hid_device *controller_ptr;
-
-unsigned short ven_id;
-unsigned short prod_id;
-unsigned short n_controller;
-
-uint n_print_cycle = 1000;
-uint print_cycle_counter = 0;
-uint n_bad_data_zero = 0;
-uint n_bad_data_thirty = 0;
-
-bool is_opened = false;
-bool calibrated = false;
-bool read_calibration_from_file =
-    true; // will be set to false in decalibrate or with flags
-bool share_button_free = false; // used for recalibration (press share & home)
-uint8_t left_x_min = 0x7e;
-uint8_t left_y_min = 0x7e;
-uint8_t right_x_min = 0x7e;
-uint8_t right_y_min = 0x7e;
-uint8_t left_x_max = 0x7e;
-uint8_t left_y_max = 0x7e;
-uint8_t right_x_max = 0x7e;
-uint8_t right_y_max = 0x7e;
-
-// bool last_d_left = false;
-// bool last_d_right = false;
-// bool last_d_up = false;
-// bool last_d_down = false;
-bool last_L1 = false;
-// bool last_L2 = false;
-bool last_L3 = false;
-bool last_R1 = false;
-// bool last_R2 = false;
-bool last_R3 = false;
-bool last_share = false;
-bool last_home = false;
-bool last_plus = false;
-bool last_minus = false;
-bool last_a = false;
-bool last_b = false;
-bool last_x = false;
-bool last_y = false;
-
-bool dribble_mode = false;
-int dribble_mode_value = 205;
-
-// uinput
-struct uinput_user_dev uinput_device;
-struct input_event uinput_event;
-int uinput_version, uinput_rc, uinput_fd;
-}
-;
+  // uinput
+  struct uinput_user_dev uinput_device;
+  struct input_event uinput_event;
+  int uinput_version, uinput_rc, uinput_fd;
+};
 
 #endif
-

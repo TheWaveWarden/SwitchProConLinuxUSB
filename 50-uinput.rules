@@ -1,0 +1,2 @@
+# allow programs without root permissions to use uinput
+ KERNEL=="uinput", MODE="0666"
