@@ -7,61 +7,40 @@ Currently only one controller is supported!
 This repo needs 
 
 - libudev
-
 - autotools, autoconf and libtool
-
 - cmake
+- hidapi
 
-On Ubuntu you can install these in a terminal with
-
+On Ubuntu you can install these in a terminal with:
 ```
 sudo apt-get install libudev-dev libusb-1.0-0-dev libfox-1.6-dev
 sudo apt-get install autotools-dev autoconf automake libtool
 sudo apt-get install cmake
+sudo apt-get install libhidapi-dev
 ```
-Further we need
-
-- hidapi
-
-Compile and install it from source in its own folder by using:
-
-```
-mkdir hidapi
-cd hidapi
-git clone git://github.com/signal11/hidapi.git .
-./bootstrap
-./configure
-make
-sudo make install
-```
-
-You can delete the hidapi folder now:
-
-```
-cd ..
-rm -rf hidapi
-```
-
 # Installation
-
 
 Create install folder for Pro Controller driver and enter it, e.g.
 ```
 mkdir ~/procon_driver
 cd ~/procon_driver
 ```
-Clone the repository here
+You can download the ZIP file through your browser and extract it, or you can use git. If you don't already have it:
+```
+sudo apt install git
+```
+Clone the repository here:
 ```
 git clone https://github.com/FrotBot/SwitchProConLinuxUSB.git .
 ```
-install and build the driver
+install and build the driver:
 ```
 bash install.sh
 ```
 
-reboot your PC once to make the udev rules work
+Reboot your PC once to make the udev rules work.
 
-Open terminal once more and navigate to the build directory in the install folder
+Open the terminal once more and navigate to the build directory in the install folder:
 ```
 cd ~/procon_driver/build
 ```
@@ -82,6 +61,7 @@ sudo ./procon_driver
 
 
 # Thanks
+
 This project took heavy inspiration and some constants from this project:
 https://github.com/MTCKC/ProconXInput/tree/v0.1.0-alpha2
 
