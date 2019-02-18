@@ -59,9 +59,10 @@ On newer kernel versions, uinput devices need root privileges, so if you get err
 sudo ./procon_driver
 ```
 
-# Inverted Axes
+# Inverted axes and swap buttons 
 
 If you're having trouble with inverted axes, try ./procon_driver --help and see options to run with inverted axes there.
+There's also an option to run with A and B as well as X and Y buttons switched, if you prefer the button output as they're written on the pad as opposed to XBox layout.
 
 
 # Thanks
