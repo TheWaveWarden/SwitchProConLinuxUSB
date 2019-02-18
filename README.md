@@ -59,11 +59,17 @@ On newer kernel versions, uinput devices need root privileges, so if you get err
 sudo ./procon_driver
 ```
 
+# Inverted Axes
+
+If you're having trouble with inverted axes, try ./procon_driver --help and see options to run with inverted axes there.
+
 
 # Thanks
 
 This project took heavy inspiration and some constants from this project:
 https://github.com/MTCKC/ProconXInput/tree/v0.1.0-alpha2
+
+
 
 
 
