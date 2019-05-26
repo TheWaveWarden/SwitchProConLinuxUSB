@@ -1143,7 +1143,7 @@ public:
     int ret = write(uinput_fd, &uinput_event, sizeof(uinput_event));
     if (ret < 0) {
       red();
-      printf("ERROR: write in write_single_joystic() returned %i\n", ret);
+      printf("ERROR: write in write_single_joystic() returned %i\nMaybe try running with sudo\n", ret);
       normal();
     }
   }
@@ -1159,7 +1159,7 @@ public:
     int ret = write(uinput_fd, &uinput_event, sizeof(uinput_event));
     if (ret < 0) {
       red();
-      printf("ERROR: write in button_down() returned %i\n", ret);
+      printf("ERROR: write in button_down() returned %i\nMaybe try running with sudo\n", ret);
       normal();
     }
 
