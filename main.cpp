@@ -91,19 +91,21 @@ int main(int argc, char *argv[]) {
 #endif
     if (!option_found) {
       std::cout << "Unknown option " << argv[i]
-                << ". For usage, type 'procon_driver --help'" << std::endl;
+                << ". For usage, type './procon_driver --help'" << std::endl;
       return -1;
     }
   }
 
   if (help) {
-    printf("Usage: procon_driver [OPTIONS]\noptions are:\n");
+    printf("Usage: procon_driver [OPTIONS]\nOptions are:\n");
     printf(" -h --help                   get help on usage at start\n");
     printf(" -c --calibration            force calibration at start\n");
     printf(" -s --swap_buttons           Swap A and B buttons and X and Y "
            "buttons\n");
     printf(" -i --invert-axis [AXIS]     invert axis, possible axis: lx, ly, "
            "rx, ry, dx, dy\n");
+    printf("\nIf you are experiencing an error, try running the program as root.");
+
 #ifdef DRIBBLE_MODE
     printf(" -d [VALUE]                  pass parameter for dribble cam. Range "
            "0 to 255\n");
@@ -236,7 +238,7 @@ int main(int argc, char *argv[]) {
       ProController::blue();
       printf("Now entering calibration mode. \n");
       ProController::cyan();
-      printf("%c[%d;%dmMove your analog sticks to the maxima, then press the "
+      printf("%c[%d;%dmMove both control sticks to their maximum positions (i.e. turn them in a circle once slowly.), then press the "
              "square 'share' button!\n%c[%dm",
              27, 1, 36, 27, 0);
       ProController::normal();
