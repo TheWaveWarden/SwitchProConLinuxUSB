@@ -992,6 +992,8 @@ public:
       uinput_button_down(BTN_THUMBR);
     // if (b_L1 && !last_L1)
     //   uinput_button_down(BTN_TL);
+    if (b_home && !last_home)
+      uinput_button_down(BTN_MODE);
 
     // release
     if (!b_a && last_a)
@@ -1037,6 +1039,8 @@ public:
       uinput_button_release(BTN_THUMBR);
     // if (!b_L1 && last_L1)
     //   uinput_button_release(BTN_TL);
+    if (!b_home && last_home)
+      uinput_button_release(BTN_MODE);
 
     // last_d_left = b_d_left;
     // last_d_right = b_d_right;
