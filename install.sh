@@ -8,5 +8,5 @@ make
 cd ..
 
 #copy udev rules
-sudo cp 99-hid-procon.rules /etc/udev/rules.d/99-hid-procon.rules
-sudo cp 50-uinput.rules /etc/udev/rules.d/50-uinput.rules
+sudo cp 71-nintendo-switch-procon-usb.rules /etc/udev/rules.d/71-nintendo-switch-procon-usb.rules
+
